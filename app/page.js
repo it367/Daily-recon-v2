@@ -4,6 +4,26 @@ import { DollarSign, FileText, Building2, TrendingUp, Clock, Bot, Send, Loader2,
 
 const LOCATIONS = ['Pearl City', 'OS', 'Ortho', 'Lihue', 'Kapolei', 'Kailua', 'Honolulu', 'HHDS'];
 
+// MOVED OUTSIDE - This fixes the focus bug
+function InputField({ label, value, onChange }) {
+  return (
+    <div className="flex flex-col">
+      <label className="text-xs text-gray-500 mb-1">{label}</label>
+      <div className="flex items-center border-2 rounded-lg bg-white focus-within:border-blue-400">
+        <span className="px-2 text-gray-400">$</span>
+        <input 
+          type="number" 
+          step="0.01" 
+          value={value}
+          onChange={onChange}
+          className="w-full p-2.5 rounded-r-lg outline-none" 
+          placeholder="0.00" 
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ClinicDataSystem() {
   const [user, setUser] = useState(null);
   const [tempName, setTempName] = useState('');
@@ -44,6 +64,10 @@ export default function ClinicDataSystem() {
 
   const handleLogout = () => { setUser(null); setTempName(''); setView('input'); };
 
+  const updateField = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const saveEntry = async () => {
     if (!user) return;
     setSaving(true);
@@ -63,9 +87,9 @@ export default function ClinicDataSystem() {
       setAllEntries(updated);
       setMessage('✓ Entry saved!');
       setTimeout(() => setMessage(''), 3000);
-      setFormData({...formData, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', 
+      setFormData(prev => ({...prev, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', 
         careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', 
-        depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: ''});
+        depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: ''}));
     } catch (e) { setMessage('Error saving'); }
     setSaving(false);
   };
@@ -105,18 +129,6 @@ export default function ClinicDataSystem() {
   const weeklyData = locationEntries.filter(e => new Date(e.date) >= weekAgo);
   const weeklyTotal = weeklyData.reduce((s, e) => s + (e.total || 0), 0);
   const weeklyDeposit = weeklyData.reduce((s, e) => s + (e.depositTotal || 0), 0);
-
-  const InputField = ({ label, field }) => (
-    <div className="flex flex-col">
-      <label className="text-xs text-gray-500 mb-1">{label}</label>
-      <div className="flex items-center border-2 rounded-lg bg-white focus-within:border-blue-400">
-        <span className="px-2 text-gray-400">$</span>
-        <input type="number" step="0.01" value={formData[field]}
-          onChange={e => setFormData({...formData, [field]: e.target.value})}
-          className="w-full p-2.5 rounded-r-lg outline-none" placeholder="0.00" />
-      </div>
-    </div>
-  );
 
   if (!user) {
     return (
@@ -196,17 +208,17 @@ export default function ClinicDataSystem() {
               </h2>
               <div className="mb-4">
                 <label className="text-xs text-gray-500 mb-1 block">Date</label>
-                <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})}
+                <input type="date" value={formData.date} onChange={e => updateField('date', e.target.value)}
                   className="w-full p-2.5 border-2 rounded-xl" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <InputField label="Cash" field="cash" />
-                <InputField label="Credit Card (OTC)" field="creditCard" />
-                <InputField label="Checks (OTC)" field="checksOTC" />
-                <InputField label="Insurance Checks" field="insuranceChecks" />
-                <InputField label="Care Credit" field="careCredit" />
-                <InputField label="VCC" field="vcc" />
-                <InputField label="EFTs" field="efts" />
+                <InputField label="Cash" value={formData.cash} onChange={e => updateField('cash', e.target.value)} />
+                <InputField label="Credit Card (OTC)" value={formData.creditCard} onChange={e => updateField('creditCard', e.target.value)} />
+                <InputField label="Checks (OTC)" value={formData.checksOTC} onChange={e => updateField('checksOTC', e.target.value)} />
+                <InputField label="Insurance Checks" value={formData.insuranceChecks} onChange={e => updateField('insuranceChecks', e.target.value)} />
+                <InputField label="Care Credit" value={formData.careCredit} onChange={e => updateField('careCredit', e.target.value)} />
+                <InputField label="VCC" value={formData.vcc} onChange={e => updateField('vcc', e.target.value)} />
+                <InputField label="EFTs" value={formData.efts} onChange={e => updateField('efts', e.target.value)} />
               </div>
               <div className="mt-4 pt-3 border-t flex justify-between items-center">
                 <span className="text-gray-600">Total:</span>
@@ -222,16 +234,16 @@ export default function ClinicDataSystem() {
                 <FileText className="w-5 h-5 text-green-600" /> Bank Deposit
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                <InputField label="Cash" field="depositCash" />
-                <InputField label="Credit Card" field="depositCreditCard" />
-                <InputField label="Checks (OTC)" field="depositChecks" />
-                <InputField label="Insurance Checks" field="depositInsurance" />
-                <InputField label="Care Credit" field="depositCareCredit" />
-                <InputField label="VCC" field="depositVCC" />
+                <InputField label="Cash" value={formData.depositCash} onChange={e => updateField('depositCash', e.target.value)} />
+                <InputField label="Credit Card" value={formData.depositCreditCard} onChange={e => updateField('depositCreditCard', e.target.value)} />
+                <InputField label="Checks (OTC)" value={formData.depositChecks} onChange={e => updateField('depositChecks', e.target.value)} />
+                <InputField label="Insurance Checks" value={formData.depositInsurance} onChange={e => updateField('depositInsurance', e.target.value)} />
+                <InputField label="Care Credit" value={formData.depositCareCredit} onChange={e => updateField('depositCareCredit', e.target.value)} />
+                <InputField label="VCC" value={formData.depositVCC} onChange={e => updateField('depositVCC', e.target.value)} />
               </div>
               <div className="mt-3">
                 <label className="text-xs text-gray-500 mb-1 block">Notes (optional)</label>
-                <input type="text" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})}
+                <input type="text" value={formData.notes} onChange={e => updateField('notes', e.target.value)}
                   className="w-full p-2.5 border-2 rounded-xl" placeholder="Any notes..." />
               </div>
               <div className="mt-4 pt-3 border-t flex justify-between items-center">
