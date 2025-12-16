@@ -1,24 +1,54 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { DollarSign, FileText, Building2, TrendingUp, Clock, Bot, Send, Loader2, LogOut, User, MapPin } from 'lucide-react';
+import { DollarSign, FileText, Building2, TrendingUp, Clock, Bot, Send, Loader2, LogOut, User, MapPin, Upload, X, File } from 'lucide-react';
 
 const LOCATIONS = ['Pearl City', 'OS', 'Ortho', 'Lihue', 'Kapolei', 'Kailua', 'Honolulu', 'HHDS'];
 
-// MOVED OUTSIDE - This fixes the focus bug
 function InputField({ label, value, onChange }) {
   return (
     <div className="flex flex-col">
       <label className="text-xs text-gray-500 mb-1">{label}</label>
       <div className="flex items-center border-2 rounded-lg bg-white focus-within:border-blue-400">
         <span className="px-2 text-gray-400">$</span>
-        <input 
-          type="number" 
-          step="0.01" 
-          value={value}
-          onChange={onChange}
-          className="w-full p-2.5 rounded-r-lg outline-none" 
-          placeholder="0.00" 
-        />
+        <input type="number" step="0.01" value={value} onChange={onChange}
+          className="w-full p-2.5 rounded-r-lg outline-none" placeholder="0.00" />
+      </div>
+    </div>
+  );
+}
+
+function FileUpload({ label, files, onFilesChange }) {
+  const handleFileChange = (e) => {
+    const newFiles = Array.from(e.target.files);
+    onFilesChange([...files, ...newFiles]);
+  };
+  const removeFile = (index) => {
+    onFilesChange(files.filter((_, i) => i !== index));
+  };
+  return (
+    <div className="flex flex-col">
+      <label className="text-xs text-gray-500 mb-1">{label}</label>
+      <div className="border-2 border-dashed rounded-lg p-3 bg-gray-50">
+        <label className="flex items-center justify-center gap-2 cursor-pointer text-gray-500 hover:text-blue-600">
+          <Upload className="w-4 h-4" />
+          <span className="text-sm">Click to upload</span>
+          <input type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
+        </label>
+        {files.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {files.map((file, index) => (
+              <div key={index} className="flex items-center justify-between bg-white p-2 rounded text-sm">
+                <div className="flex items-center gap-2 truncate">
+                  <File className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  <span className="truncate">{file.name}</span>
+                </div>
+                <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-700 flex-shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -38,6 +68,9 @@ export default function ClinicDataSystem() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [eodDaySheets, setEodDaySheets] = useState([]);
+  const [eodBankReceipts, setEodBankReceipts] = useState([]);
+  const [otherFiles, setOtherFiles] = useState([]);
   
   const today = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
@@ -76,8 +109,15 @@ export default function ClinicDataSystem() {
     const depositTotal = ['depositCash', 'depositCreditCard', 'depositChecks', 'depositInsurance', 'depositCareCredit', 'depositVCC']
       .reduce((sum, f) => sum + (parseFloat(formData[f]) || 0), 0);
 
-    const entry = { ...formData, total, depositTotal, location: user.location,
-      enteredBy: user.name, timestamp: new Date().toISOString(), id: `${Date.now()}` };
+    const entry = { 
+      ...formData, total, depositTotal, location: user.location,
+      enteredBy: user.name, timestamp: new Date().toISOString(), id: `${Date.now()}`,
+      files: {
+        eodDaySheets: eodDaySheets.map(f => f.name),
+        eodBankReceipts: eodBankReceipts.map(f => f.name),
+        otherFiles: otherFiles.map(f => f.name)
+      }
+    };
 
     const updated = [...allEntries.filter(e => !(e.date === formData.date && e.location === user.location)), entry]
       .sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -90,6 +130,9 @@ export default function ClinicDataSystem() {
       setFormData(prev => ({...prev, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', 
         careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', 
         depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: ''}));
+      setEodDaySheets([]);
+      setEodBankReceipts([]);
+      setOtherFiles([]);
     } catch (e) { setMessage('Error saving'); }
     setSaving(false);
   };
@@ -253,11 +296,23 @@ export default function ClinicDataSystem() {
                     .reduce((s,f) => s + (parseFloat(formData[f])||0), 0).toFixed(2)}
                 </span>
               </div>
-              <button onClick={saveEntry} disabled={saving}
-                className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 disabled:opacity-50 mt-4">
-                {saving ? 'Saving...' : 'Save Entry'}
-              </button>
             </div>
+
+            <div className="bg-white rounded-2xl shadow-sm p-5 border">
+              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-purple-600" /> Documents
+              </h2>
+              <div className="space-y-4">
+                <FileUpload label="EOD Day Sheets" files={eodDaySheets} onFilesChange={setEodDaySheets} />
+                <FileUpload label="EOD Bank Receipts" files={eodBankReceipts} onFilesChange={setEodBankReceipts} />
+                <FileUpload label="Other Files" files={otherFiles} onFilesChange={setOtherFiles} />
+              </div>
+            </div>
+
+            <button onClick={saveEntry} disabled={saving}
+              className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
+              {saving ? 'Saving...' : 'Save Entry'}
+            </button>
           </div>
         )}
 
@@ -267,12 +322,25 @@ export default function ClinicDataSystem() {
             {locationEntries.length === 0 ? <p className="text-gray-500">No entries yet</p> : (
               <div className="space-y-2">
                 {locationEntries.slice(0,20).map(e => (
-                  <div key={e.id} className="p-3 bg-gray-50 rounded-xl flex justify-between items-start">
-                    <div><p className="font-medium">{e.date}</p><p className="text-xs text-gray-500">By {e.enteredBy}</p></div>
-                    <div className="text-right">
-                      <p className="text-sm">Collected: <strong>${(e.total||0).toFixed(2)}</strong></p>
-                      <p className="text-sm">Deposited: <strong>${(e.depositTotal||0).toFixed(2)}</strong></p>
+                  <div key={e.id} className="p-3 bg-gray-50 rounded-xl">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium">{e.date}</p>
+                        <p className="text-xs text-gray-500">By {e.enteredBy}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm">Collected: <strong>${(e.total||0).toFixed(2)}</strong></p>
+                        <p className="text-sm">Deposited: <strong>${(e.depositTotal||0).toFixed(2)}</strong></p>
+                      </div>
                     </div>
+                    {e.files && (e.files.eodDaySheets?.length > 0 || e.files.eodBankReceipts?.length > 0 || e.files.otherFiles?.length > 0) && (
+                      <div className="mt-2 pt-2 border-t">
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <File className="w-3 h-3" /> 
+                          {(e.files.eodDaySheets?.length || 0) + (e.files.eodBankReceipts?.length || 0) + (e.files.otherFiles?.length || 0)} file(s) attached
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -336,4 +404,4 @@ export default function ClinicDataSystem() {
       </div>
     </div>
   );
-}
+        }
