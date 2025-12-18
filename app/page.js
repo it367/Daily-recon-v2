@@ -1,50 +1,47 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { DollarSign, FileText, Building2, TrendingUp, Clock, Bot, Send, Loader2, LogOut, User, MapPin, Upload, X, File } from 'lucide-react';
+import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Menu, Eye, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings } from 'lucide-react';
 
 const LOCATIONS = ['Pearl City', 'OS', 'Ortho', 'Lihue', 'Kapolei', 'Kailua', 'Honolulu', 'HHDS'];
+const DEFAULT_ADMIN_PASSWORD = 'admin123';
+const DATE_RANGES = ['This Week', 'Last 2 Weeks', 'This Month', 'Last Month', 'This Quarter', 'This Year', 'Custom'];
 
-function InputField({ label, value, onChange }) {
+function InputField({ label, value, onChange, type = 'text', placeholder = '', prefix }) {
   return (
     <div className="flex flex-col">
       <label className="text-xs text-gray-500 mb-1">{label}</label>
       <div className="flex items-center border-2 rounded-lg bg-white focus-within:border-blue-400">
-        <span className="px-2 text-gray-400">$</span>
-        <input type="number" step="0.01" value={value} onChange={onChange}
-          className="w-full p-2.5 rounded-r-lg outline-none" placeholder="0.00" />
+        {prefix && <span className="px-2 text-gray-400">{prefix}</span>}
+        <input type={type} value={value} onChange={onChange} className="w-full p-2.5 rounded-lg outline-none" placeholder={placeholder} />
       </div>
     </div>
   );
 }
 
-function FileUpload({ label, files, onFilesChange }) {
+function FileUpload({ label, files, onFilesChange, onViewFile }) {
   const handleFileChange = (e) => {
-    const newFiles = Array.from(e.target.files);
+    const newFiles = Array.from(e.target.files).map(f => ({ name: f.name, size: f.size, type: f.type, url: URL.createObjectURL(f) }));
     onFilesChange([...files, ...newFiles]);
-  };
-  const removeFile = (index) => {
-    onFilesChange(files.filter((_, i) => i !== index));
   };
   return (
     <div className="flex flex-col">
       <label className="text-xs text-gray-500 mb-1">{label}</label>
       <div className="border-2 border-dashed rounded-lg p-3 bg-gray-50">
         <label className="flex items-center justify-center gap-2 cursor-pointer text-gray-500 hover:text-blue-600">
-          <Upload className="w-4 h-4" />
-          <span className="text-sm">Click to upload</span>
+          <Upload className="w-4 h-4" /><span className="text-sm">Click to upload</span>
           <input type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
         </label>
         {files.length > 0 && (
           <div className="mt-2 space-y-1">
-            {files.map((file, index) => (
-              <div key={index} className="flex items-center justify-between bg-white p-2 rounded text-sm">
-                <div className="flex items-center gap-2 truncate">
-                  <File className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  <span className="truncate">{file.name}</span>
+            {files.map((file, i) => (
+              <div key={i} className="flex items-center justify-between bg-white p-2 rounded text-sm">
+                <div className="flex items-center gap-2 truncate flex-1">
+                  <File className="w-4 h-4 text-blue-500" /><span className="truncate">{file.name}</span>
                 </div>
-                <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-700 flex-shrink-0">
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {file.url && <button onClick={() => onViewFile(file)} className="p-1 text-blue-500 hover:text-blue-700"><Eye className="w-4 h-4" /></button>}
+                  <button onClick={() => onFilesChange(files.filter((_, idx) => idx !== i))} className="p-1 text-red-500"><X className="w-4 h-4" /></button>
+                </div>
               </div>
             ))}
           </div>
@@ -54,354 +51,781 @@ function FileUpload({ label, files, onFilesChange }) {
   );
 }
 
-export default function ClinicDataSystem() {
-  const [user, setUser] = useState(null);
-  const [tempName, setTempName] = useState('');
-  const [tempLocation, setTempLocation] = useState('Kailua');
-  const [view, setView] = useState('input');
-  const [allEntries, setAllEntries] = useState([]);
-  const [loading, setLoading] = useState(false);
+function FileViewer({ file, onClose }) {
+  if (!file) return null;
+  const isImage = file.type?.startsWith('image/') || file.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-4xl max-h-[90vh] w-full overflow-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
+          <h3 className="font-semibold truncate">{file.name}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-4">
+          {isImage ? <img src={file.url} alt={file.name} className="max-w-full rounded-lg mx-auto" /> : (
+            <div className="text-center py-8 text-gray-500">
+              <File className="w-16 h-16 mx-auto mb-4" /><p>Preview not available</p>
+              <a href={file.url} download={file.name} className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg">Download</a>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DailyReconSystem() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginMode, setLoginMode] = useState('staff');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  
+  const [view, setView] = useState('entry');
+  const [adminView, setAdminView] = useState('records');
+  const [allData, setAllData] = useState([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState([
-    { role: 'assistant', content: "Hi! I can help you with data summaries and weekly reports. Try asking:\n\n• \"Weekly summary for Kailua\"\n• \"Show all variances\"\n• \"Compare all locations\"" }
-  ]);
+  const [viewingFile, setViewingFile] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [adminLocation, setAdminLocation] = useState('all');
+  
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', locations: [] });
+  
+  const [adminPwd, setAdminPwd] = useState(DEFAULT_ADMIN_PASSWORD);
+  const [pwdForm, setPwdForm] = useState({ current: '', new: '', confirm: '' });
+  
+  const [exportLocation, setExportLocation] = useState('all');
+  const [exportRange, setExportRange] = useState('This Month');
+  
+  const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: "Hi! I can help with Daily Recon summaries. Try:\n• \"Weekly summary\"\n• \"Today's totals\"\n• \"Compare locations\"" }]);
   const [chatInput, setChatInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [eodDaySheets, setEodDaySheets] = useState([]);
-  const [eodBankReceipts, setEodBankReceipts] = useState([]);
-  const [otherFiles, setOtherFiles] = useState([]);
-  
+
   const today = new Date().toISOString().split('T')[0];
-  const [formData, setFormData] = useState({
-    date: today, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '',
-    careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '',
-    depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: ''
-  });
+  const [form, setForm] = useState({ date: today, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: '' });
+  const [files, setFiles] = useState({ eodDaySheets: [], eodBankReceipts: [], otherFiles: [] });
 
-  useEffect(() => { if (user) loadAllEntries(); }, [user]);
+  useEffect(() => { 
+    loadData(); 
+    loadUsers();
+    const storedPwd = localStorage.getItem('admin-password');
+    if (storedPwd) setAdminPwd(storedPwd);
+  }, []);
 
-  const loadAllEntries = async () => {
-    setLoading(true);
-    try {
-      const stored = localStorage.getItem('clinic-entries');
-      if (stored) setAllEntries(JSON.parse(stored));
-    } catch (e) { setAllEntries([]); }
-    setLoading(false);
+  const loadData = () => {
+    const stored = localStorage.getItem('clinic-daily-recon');
+    if (stored) setAllData(JSON.parse(stored));
   };
 
-  const handleLogin = () => {
-    if (!tempName.trim()) return;
-    setUser({ name: tempName.trim(), location: tempLocation });
+  const loadUsers = () => {
+    const stored = localStorage.getItem('clinic-users');
+    if (stored) setUsers(JSON.parse(stored));
+    else {
+      const defaultUsers = [{ id: '1', name: 'Demo User', email: 'demo', password: '1234', locations: ['Kailua', 'Honolulu'] }];
+      setUsers(defaultUsers);
+      localStorage.setItem('clinic-users', JSON.stringify(defaultUsers));
+    }
   };
 
-  const handleLogout = () => { setUser(null); setTempName(''); setView('input'); };
-
-  const updateField = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const saveUsers = (newUsers) => {
+    setUsers(newUsers);
+    localStorage.setItem('clinic-users', JSON.stringify(newUsers));
   };
+
+  const handleStaffLogin = () => {
+    const user = users.find(u => u.email.toLowerCase() === loginEmail.toLowerCase() && u.password === loginPassword);
+    if (user) {
+      setCurrentUser(user);
+      if (user.locations.length === 1) setSelectedLocation(user.locations[0]);
+      setMessage('');
+    } else {
+      setMessage('Invalid email or password');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleAdminLogin = () => {
+    if (adminPassword === adminPwd) {
+      setIsAdmin(true);
+      setCurrentUser({ name: 'Admin', isAdmin: true });
+    } else {
+      setMessage('Invalid admin password');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setIsAdmin(false);
+    setSelectedLocation(null);
+    setLoginEmail('');
+    setLoginPassword('');
+    setAdminPassword('');
+    setView('entry');
+    setAdminView('records');
+    setPwdForm({ current: '', new: '', confirm: '' });
+  };
+
+  const addUser = () => {
+    if (!newUser.name || !newUser.email || !newUser.password || newUser.locations.length === 0) {
+      setMessage('Please fill all fields and select at least one location');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    const user = { ...newUser, id: Date.now().toString() };
+    saveUsers([...users, user]);
+    setNewUser({ name: '', email: '', password: '', locations: [] });
+    setShowAddUser(false);
+    setMessage('✓ User added!');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const updateUser = () => {
+    if (!editingUser.name || !editingUser.email || editingUser.locations.length === 0) {
+      setMessage('Please fill all fields');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    saveUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
+    setEditingUser(null);
+    setMessage('✓ User updated!');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const deleteUser = (id) => {
+    if (confirm('Delete this user?')) {
+      saveUsers(users.filter(u => u.id !== id));
+      setMessage('✓ User deleted');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const changeAdminPassword = () => {
+    if (pwdForm.current !== adminPwd) {
+      setMessage('Current password is incorrect');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    if (pwdForm.new.length < 4) {
+      setMessage('New password must be at least 4 characters');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    if (pwdForm.new !== pwdForm.confirm) {
+      setMessage('New passwords do not match');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    localStorage.setItem('admin-password', pwdForm.new);
+    setAdminPwd(pwdForm.new);
+    setPwdForm({ current: '', new: '', confirm: '' });
+    setMessage('✓ Password changed successfully!');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const changeUserPassword = () => {
+    if (pwdForm.current !== currentUser.password) {
+      setMessage('Current password is incorrect');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    if (pwdForm.new.length < 4) {
+      setMessage('New password must be at least 4 characters');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    if (pwdForm.new !== pwdForm.confirm) {
+      setMessage('New passwords do not match');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    const updatedUsers = users.map(u => u.id === currentUser.id ? { ...u, password: pwdForm.new } : u);
+    saveUsers(updatedUsers);
+    setCurrentUser({ ...currentUser, password: pwdForm.new });
+    setPwdForm({ current: '', new: '', confirm: '' });
+    setMessage('✓ Password changed successfully!');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const toggleUserLocation = (loc, isEditing = false) => {
+    if (isEditing) {
+      const locs = editingUser.locations.includes(loc) ? editingUser.locations.filter(l => l !== loc) : [...editingUser.locations, loc];
+      setEditingUser({ ...editingUser, locations: locs });
+    } else {
+      const locs = newUser.locations.includes(loc) ? newUser.locations.filter(l => l !== loc) : [...newUser.locations, loc];
+      setNewUser({ ...newUser, locations: locs });
+    }
+  };
+
+  const updateForm = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const updateFiles = (field, newFiles) => setFiles(prev => ({ ...prev, [field]: newFiles }));
 
   const saveEntry = async () => {
-    if (!user) return;
     setSaving(true);
-    const total = ['cash', 'creditCard', 'checksOTC', 'insuranceChecks', 'careCredit', 'vcc', 'efts']
-      .reduce((sum, f) => sum + (parseFloat(formData[f]) || 0), 0);
-    const depositTotal = ['depositCash', 'depositCreditCard', 'depositChecks', 'depositInsurance', 'depositCareCredit', 'depositVCC']
-      .reduce((sum, f) => sum + (parseFloat(formData[f]) || 0), 0);
-
-    const entry = { 
-      ...formData, total, depositTotal, location: user.location,
-      enteredBy: user.name, timestamp: new Date().toISOString(), id: `${Date.now()}`,
-      files: {
-        eodDaySheets: eodDaySheets.map(f => f.name),
-        eodBankReceipts: eodBankReceipts.map(f => f.name),
-        otherFiles: otherFiles.map(f => f.name)
-      }
+    const entry = {
+      ...form,
+      files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.map(f => ({ name: f.name, type: f.type, url: f.url }))])),
+      location: selectedLocation,
+      enteredBy: currentUser.name,
+      timestamp: new Date().toISOString(),
+      id: `${Date.now()}`,
+      total: ['cash', 'creditCard', 'checksOTC', 'insuranceChecks', 'careCredit', 'vcc', 'efts'].reduce((s, f) => s + (parseFloat(form[f]) || 0), 0),
+      depositTotal: ['depositCash', 'depositCreditCard', 'depositChecks', 'depositInsurance', 'depositCareCredit', 'depositVCC'].reduce((s, f) => s + (parseFloat(form[f]) || 0), 0)
     };
 
-    const updated = [...allEntries.filter(e => !(e.date === formData.date && e.location === user.location)), entry]
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    const updated = [entry, ...allData].slice(0, 500);
+    localStorage.setItem('clinic-daily-recon', JSON.stringify(updated));
+    setAllData(updated);
+    setMessage('✓ Entry saved!');
+    setTimeout(() => setMessage(''), 3000);
 
-    try {
-      localStorage.setItem('clinic-entries', JSON.stringify(updated));
-      setAllEntries(updated);
-      setMessage('✓ Entry saved!');
-      setTimeout(() => setMessage(''), 3000);
-      setFormData(prev => ({...prev, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', 
-        careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', 
-        depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: ''}));
-      setEodDaySheets([]);
-      setEodBankReceipts([]);
-      setOtherFiles([]);
-    } catch (e) { setMessage('Error saving'); }
+    setForm({ date: today, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: '' });
+    setFiles({ eodDaySheets: [], eodBankReceipts: [], otherFiles: [] });
     setSaving(false);
+  };
+
+  const exportToCSV = () => {
+    let filtered = allData;
+    if (exportLocation !== 'all') filtered = filtered.filter(e => e.location === exportLocation);
+    
+    if (filtered.length === 0) { setMessage('No data to export'); setTimeout(() => setMessage(''), 3000); return; }
+    
+    const headers = Object.keys(filtered[0]).filter(k => k !== 'files');
+    const csv = [headers.join(','), ...filtered.map(row => headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-recon_${exportLocation}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    setMessage('✓ Export complete!');
+    setTimeout(() => setMessage(''), 3000);
   };
 
   const askAI = async () => {
     if (!chatInput.trim()) return;
-    const userMessage = chatInput;
+    setChatMessages(prev => [...prev, { role: 'user', content: chatInput }]);
     setChatInput('');
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setAiLoading(true);
-
-    const dataSummary = LOCATIONS.map(loc => {
-      const locEntries = allEntries.filter(e => e.location === loc).slice(0, 14);
-      if (locEntries.length === 0) return `\n${loc}: No entries yet`;
-      return `\n${loc}:\n${locEntries.map(e => 
-        `  ${e.date}: Collections=$${e.total?.toFixed(2)||0}, Deposit=$${e.depositTotal?.toFixed(2)||0}, Variance=$${((e.total||0)-(e.depositTotal||0)).toFixed(2)}, By: ${e.enteredBy}`
-      ).join('\n')}`;
-    }).join('\n');
-
+    const dataSummary = `Daily Recon: ${allData.length} entries`;
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: userMessage }], dataSummary })
-      });
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: chatInput }], dataSummary }) });
       const data = await response.json();
-      const aiResponse = data.content?.[0]?.text || 'Sorry, I had trouble with that.';
-      setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    } catch (e) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Error connecting to AI.' }]);
-    }
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.content?.[0]?.text || 'Sorry, error occurred.' }]);
+    } catch (e) { setChatMessages(prev => [...prev, { role: 'assistant', content: 'Error connecting to AI.' }]); }
     setAiLoading(false);
   };
 
-  const locationEntries = allEntries.filter(e => e.location === user?.location);
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const weeklyData = locationEntries.filter(e => new Date(e.date) >= weekAgo);
-  const weeklyTotal = weeklyData.reduce((s, e) => s + (e.total || 0), 0);
-  const weeklyDeposit = weeklyData.reduce((s, e) => s + (e.depositTotal || 0), 0);
+  const getEntries = () => {
+    if (isAdmin && adminLocation !== 'all') return allData.filter(e => e.location === adminLocation);
+    if (!isAdmin && selectedLocation) return allData.filter(e => e.location === selectedLocation);
+    return allData;
+  };
 
-  if (!user) {
+  const getFileCount = (entry) => entry.files ? Object.values(entry.files).reduce((sum, arr) => sum + (arr?.length || 0), 0) : 0;
+
+  const getAllDocuments = () => {
+    const docs = [];
+    allData.forEach(entry => {
+      if (entry.files) {
+        Object.entries(entry.files).forEach(([cat, fileList]) => {
+          (fileList || []).forEach(file => {
+            docs.push({ ...file, location: entry.location, entryDate: entry.timestamp?.split('T')[0], enteredBy: entry.enteredBy, category: cat });
+          });
+        });
+      }
+    });
+    return docs;
+  };
+
+  // ========== LOGIN SCREEN ==========
+  if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-blue-600" />
+              <DollarSign className="w-8 h-8 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">Clinic Daily Recon</h1>
-            <p className="text-gray-500 mt-1">Enter your info to continue</p>
+            <h1 className="text-2xl font-bold text-gray-800">Daily Recon</h1>
+            <p className="text-gray-500 text-sm">Clinic Reconciliation System</p>
           </div>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <MapPin className="w-4 h-4" /> Your Location
-              </label>
-              <select value={tempLocation} onChange={e => setTempLocation(e.target.value)}
-                className="w-full p-3 border-2 rounded-xl text-lg focus:border-blue-400 outline-none">
-                {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <User className="w-4 h-4" /> Your Name
-              </label>
-              <input type="text" value={tempName} onChange={e => setTempName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                className="w-full p-3 border-2 rounded-xl text-lg focus:border-blue-400 outline-none"
-                placeholder="Enter your name" />
-            </div>
-            <button onClick={handleLogin} disabled={!tempName.trim()}
-              className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 disabled:opacity-50 mt-4">
-              Continue →
-            </button>
+
+          <div className="flex gap-2 mb-6">
+            <button onClick={() => setLoginMode('staff')} className={`flex-1 py-2 rounded-lg font-medium ${loginMode === 'staff' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>Staff</button>
+            <button onClick={() => setLoginMode('admin')} className={`flex-1 py-2 rounded-lg font-medium ${loginMode === 'admin' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}><Shield className="w-4 h-4 inline mr-1" />Admin</button>
           </div>
+
+          {message && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{message}</div>}
+
+          {loginMode === 'staff' ? (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Email / Username</label>
+                <input type="text" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full p-3 border-2 rounded-xl outline-none" placeholder="Enter email" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Password</label>
+                <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleStaffLogin()} className="w-full p-3 border-2 rounded-xl outline-none" placeholder="Enter password" />
+              </div>
+              <button onClick={handleStaffLogin} className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700">Login →</button>
+              <p className="text-xs text-center text-gray-400">Demo: demo / 1234</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Admin Password</label>
+                <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} className="w-full p-3 border-2 rounded-xl outline-none" placeholder="Enter admin password" />
+              </div>
+              <button onClick={handleAdminLogin} className="w-full py-4 bg-purple-600 text-white rounded-xl text-lg font-semibold hover:bg-purple-700">Login →</button>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="font-bold text-gray-800">{user.location}</h1>
-            <p className="text-xs text-gray-500">Logged in as {user.name}</p>
+  // ========== LOCATION SELECTOR ==========
+  if (!isAdmin && !selectedLocation && currentUser.locations.length > 1) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <h1 className="text-xl font-bold text-gray-800">Welcome, {currentUser.name}</h1>
+            <p className="text-gray-500">Select your location</p>
           </div>
-          <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-gray-600">
-            <LogOut className="w-5 h-5" />
+          <div className="space-y-2">
+            {currentUser.locations.map(loc => (
+              <button key={loc} onClick={() => setSelectedLocation(loc)} className="w-full p-4 border-2 rounded-xl text-left hover:bg-blue-50 hover:border-blue-400 flex items-center gap-3">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                <span className="font-medium">{loc}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={handleLogout} className="w-full mt-6 py-2 text-gray-500 hover:text-gray-700">← Back to Login</button>
+        </div>
+      </div>
+    );
+  }
+
+  const entries = getEntries();
+  const allDocs = getAllDocuments();
+
+  // ========== MAIN APP ==========
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <FileViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 ${isAdmin ? 'bg-purple-100' : 'bg-blue-100'} rounded-xl flex items-center justify-center`}>
+              {isAdmin ? <Shield className="w-5 h-5 text-purple-600" /> : <User className="w-5 h-5 text-blue-600" />}
+            </div>
+            <div>
+              <p className="font-semibold text-gray-800">{currentUser.name}</p>
+              <p className="text-xs text-gray-500">{isAdmin ? 'Administrator' : selectedLocation}</p>
+            </div>
+          </div>
+        </div>
+
+        {isAdmin && (
+          <div className="p-4 border-b">
+            <label className="text-xs text-gray-500">Filter Location</label>
+            <select value={adminLocation} onChange={e => setAdminLocation(e.target.value)} className="w-full mt-1 p-2 border rounded-lg text-sm">
+              <option value="all">All Locations</option>
+              {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+        )}
+
+        {!isAdmin && currentUser.locations.length > 1 && (
+          <div className="p-4 border-b">
+            <label className="text-xs text-gray-500">Switch Location</label>
+            <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)} className="w-full mt-1 p-2 border rounded-lg text-sm">
+              {currentUser.locations.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+        )}
+
+        <nav className="p-4 space-y-1">
+          <button onClick={() => { setAdminView('records'); setView('entry'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${(isAdmin ? adminView === 'records' : view === 'entry' || view === 'history' || view === 'ai') && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' && view !== 'settings' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <DollarSign className="w-5 h-5" /><span className="text-sm font-medium">Daily Recon</span>
+          </button>
+          
+          <div className="border-t my-3"></div>
+          
+          {isAdmin ? (
+            <>
+              <button onClick={() => { setAdminView('users'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${adminView === 'users' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <Users className="w-5 h-5" /><span className="text-sm font-medium">Users</span>
+              </button>
+              <button onClick={() => { setAdminView('export'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${adminView === 'export' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <Download className="w-5 h-5" /><span className="text-sm font-medium">Export</span>
+              </button>
+            </>
+          ) : (
+            <button onClick={() => { setView('export'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${view === 'export' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <Download className="w-5 h-5" /><span className="text-sm font-medium">Export</span>
+            </button>
+          )}
+        </nav>
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+          <button onClick={() => { isAdmin ? setAdminView('settings') : setView('settings'); setSidebarOpen(false); }} className={`w-full flex items-center justify-center gap-2 py-2 mb-2 rounded-lg ${(isAdmin ? adminView : view) === 'settings' ? (isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700') : 'text-gray-500 hover:bg-gray-100'}`}>
+            <Settings className="w-4 h-4" /> Settings
+          </button>
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 text-gray-500 hover:text-gray-700">
+            <LogOut className="w-4 h-4" /> Logout
           </button>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-3">
-        <div className="flex gap-1 bg-gray-200 p-1 rounded-xl">
-          {[{id:'input',label:'Entry',icon:DollarSign},{id:'history',label:'History',icon:Clock},
-            {id:'report',label:'Report',icon:TrendingUp},{id:'ai',label:'AI Help',icon:Bot}].map(tab => (
-            <button key={tab.id} onClick={() => setView(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                view === tab.id ? 'bg-white text-blue-600 shadow' : 'text-gray-600'}`}>
-              <tab.icon className="w-4 h-4" />{tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {message && <div className="max-w-2xl mx-auto px-4"><div className="p-3 bg-green-100 text-green-700 rounded-xl text-center font-medium">{message}</div></div>}
-
-      <div className="max-w-2xl mx-auto px-4 pb-8">
-        {view === 'input' && (
-          <div className="space-y-4 mt-4">
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-blue-600" /> Daily Cash Can
-              </h2>
-              <div className="mb-4">
-                <label className="text-xs text-gray-500 mb-1 block">Date</label>
-                <input type="date" value={formData.date} onChange={e => updateField('date', e.target.value)}
-                  className="w-full p-2.5 border-2 rounded-xl" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <InputField label="Cash" value={formData.cash} onChange={e => updateField('cash', e.target.value)} />
-                <InputField label="Credit Card (OTC)" value={formData.creditCard} onChange={e => updateField('creditCard', e.target.value)} />
-                <InputField label="Checks (OTC)" value={formData.checksOTC} onChange={e => updateField('checksOTC', e.target.value)} />
-                <InputField label="Insurance Checks" value={formData.insuranceChecks} onChange={e => updateField('insuranceChecks', e.target.value)} />
-                <InputField label="Care Credit" value={formData.careCredit} onChange={e => updateField('careCredit', e.target.value)} />
-                <InputField label="VCC" value={formData.vcc} onChange={e => updateField('vcc', e.target.value)} />
-                <InputField label="EFTs" value={formData.efts} onChange={e => updateField('efts', e.target.value)} />
-              </div>
-              <div className="mt-4 pt-3 border-t flex justify-between items-center">
-                <span className="text-gray-600">Total:</span>
-                <span className="text-2xl font-bold text-blue-600">
-                  ${['cash','creditCard','checksOTC','insuranceChecks','careCredit','vcc','efts']
-                    .reduce((s,f) => s + (parseFloat(formData[f])||0), 0).toFixed(2)}
-                </span>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        <header className="bg-white shadow-sm border-b sticky top-0 z-30">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2"><Menu className="w-5 h-5" /></button>
+              <div>
+                <h1 className="font-bold text-gray-800">{isAdmin ? (adminView === 'users' ? 'User Management' : adminView === 'export' ? 'Export Data' : adminView === 'settings' ? 'Settings' : 'Daily Recon') : (view === 'settings' ? 'Settings' : 'Daily Recon')}</h1>
+                <p className="text-xs text-gray-500">{isAdmin ? (adminLocation === 'all' ? 'All Locations' : adminLocation) : selectedLocation}</p>
               </div>
             </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-green-600" /> Bank Deposit
-              </h2>
-              <div className="grid grid-cols-2 gap-3">
-                <InputField label="Cash" value={formData.depositCash} onChange={e => updateField('depositCash', e.target.value)} />
-                <InputField label="Credit Card" value={formData.depositCreditCard} onChange={e => updateField('depositCreditCard', e.target.value)} />
-                <InputField label="Checks (OTC)" value={formData.depositChecks} onChange={e => updateField('depositChecks', e.target.value)} />
-                <InputField label="Insurance Checks" value={formData.depositInsurance} onChange={e => updateField('depositInsurance', e.target.value)} />
-                <InputField label="Care Credit" value={formData.depositCareCredit} onChange={e => updateField('depositCareCredit', e.target.value)} />
-                <InputField label="VCC" value={formData.depositVCC} onChange={e => updateField('depositVCC', e.target.value)} />
-              </div>
-              <div className="mt-3">
-                <label className="text-xs text-gray-500 mb-1 block">Notes (optional)</label>
-                <input type="text" value={formData.notes} onChange={e => updateField('notes', e.target.value)}
-                  className="w-full p-2.5 border-2 rounded-xl" placeholder="Any notes..." />
-              </div>
-              <div className="mt-4 pt-3 border-t flex justify-between items-center">
-                <span className="text-gray-600">Deposit Total:</span>
-                <span className="text-2xl font-bold text-green-600">
-                  ${['depositCash','depositCreditCard','depositChecks','depositInsurance','depositCareCredit','depositVCC']
-                    .reduce((s,f) => s + (parseFloat(formData[f])||0), 0).toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Upload className="w-5 h-5 text-purple-600" /> Documents
-              </h2>
-              <div className="space-y-4">
-                <FileUpload label="EOD Day Sheets" files={eodDaySheets} onFilesChange={setEodDaySheets} />
-                <FileUpload label="EOD Bank Receipts" files={eodBankReceipts} onFilesChange={setEodBankReceipts} />
-                <FileUpload label="Other Files" files={otherFiles} onFilesChange={setOtherFiles} />
-              </div>
-            </div>
-
-            <button onClick={saveEntry} disabled={saving}
-              className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
-              {saving ? 'Saving...' : 'Save Entry'}
-            </button>
           </div>
-        )}
+          <div className="flex gap-1 px-4 pb-3 overflow-x-auto">
+            {isAdmin && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' ? (
+              [{ id: 'records', label: 'Records', icon: FileText }, { id: 'documents', label: 'Documents', icon: FolderOpen }, { id: 'ai', label: 'AI Help', icon: Bot }].map(tab => (
+                <button key={tab.id} onClick={() => setAdminView(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 ${adminView === tab.id ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  <tab.icon className="w-4 h-4" />{tab.label}
+                </button>
+              ))
+            ) : !isAdmin && view !== 'settings' && view !== 'export' ? (
+              [{ id: 'entry', label: 'New Entry' }, { id: 'history', label: 'History' }, { id: 'ai', label: 'AI Help' }].map(tab => (
+                <button key={tab.id} onClick={() => setView(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-medium ${view === tab.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{tab.label}</button>
+              ))
+            ) : null}
+          </div>
+        </header>
 
-        {view === 'history' && (
-          <div className="bg-white rounded-2xl shadow-sm p-5 border mt-4">
-            <h2 className="font-semibold text-gray-800 mb-4">Recent Entries</h2>
-            {locationEntries.length === 0 ? <p className="text-gray-500">No entries yet</p> : (
-              <div className="space-y-2">
-                {locationEntries.slice(0,20).map(e => (
-                  <div key={e.id} className="p-3 bg-gray-50 rounded-xl">
-                    <div className="flex justify-between items-start">
+        {message && <div className="mx-4 mt-4 p-3 bg-green-100 text-green-700 rounded-xl text-center font-medium">{message}</div>}
+
+        <main className="flex-1 p-4 max-w-4xl mx-auto w-full">
+          {/* ADMIN VIEWS */}
+          {isAdmin && adminView === 'users' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-700">{users.length} Users</h2>
+                <button onClick={() => setShowAddUser(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg"><Plus className="w-4 h-4" />Add User</button>
+              </div>
+
+              {(showAddUser || editingUser) && (
+                <div className="bg-white rounded-2xl shadow-sm p-5 border">
+                  <h3 className="font-semibold mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <InputField label="Name" value={editingUser ? editingUser.name : newUser.name} onChange={e => editingUser ? setEditingUser({...editingUser, name: e.target.value}) : setNewUser({...newUser, name: e.target.value})} />
+                    <InputField label="Email / Username" value={editingUser ? editingUser.email : newUser.email} onChange={e => editingUser ? setEditingUser({...editingUser, email: e.target.value}) : setNewUser({...newUser, email: e.target.value})} />
+                    <div className="col-span-2">
+                      <InputField label={editingUser ? "New Password (leave blank to keep)" : "Password"} type="password" value={editingUser ? (editingUser.newPassword || '') : newUser.password} onChange={e => editingUser ? setEditingUser({...editingUser, newPassword: e.target.value, password: e.target.value || editingUser.password}) : setNewUser({...newUser, password: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="text-xs text-gray-500 mb-2 block">Assigned Locations</label>
+                    <div className="flex flex-wrap gap-2">
+                      {LOCATIONS.map(loc => (
+                        <button key={loc} onClick={() => toggleUserLocation(loc, !!editingUser)} className={`px-3 py-1.5 rounded-full text-sm ${(editingUser ? editingUser.locations : newUser.locations).includes(loc) ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{loc}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <button onClick={editingUser ? updateUser : addUser} className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-medium">{editingUser ? 'Update' : 'Add'} User</button>
+                    <button onClick={() => { setShowAddUser(false); setEditingUser(null); }} className="px-4 py-2 bg-gray-100 rounded-lg">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <div className="divide-y">
+                  {users.map(u => (
+                    <div key={u.id} className="p-4 flex items-center justify-between">
                       <div>
-                        <p className="font-medium">{e.date}</p>
-                        <p className="text-xs text-gray-500">By {e.enteredBy}</p>
+                        <p className="font-medium">{u.name}</p>
+                        <p className="text-sm text-gray-500">{u.email}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {u.locations.map(loc => <span key={loc} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{loc}</span>)}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm">Collected: <strong>${(e.total||0).toFixed(2)}</strong></p>
-                        <p className="text-sm">Deposited: <strong>${(e.depositTotal||0).toFixed(2)}</strong></p>
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditingUser(u)} className="p-2 text-gray-400 hover:text-blue-600"><Edit3 className="w-4 h-4" /></button>
+                        <button onClick={() => deleteUser(u.id)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
-                    {e.files && (e.files.eodDaySheets?.length > 0 || e.files.eodBankReceipts?.length > 0 || e.files.otherFiles?.length > 0) && (
-                      <div className="mt-2 pt-2 border-t">
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          <File className="w-3 h-3" /> 
-                          {(e.files.eodDaySheets?.length || 0) + (e.files.eodBankReceipts?.length || 0) + (e.files.otherFiles?.length || 0)} file(s) attached
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {view === 'report' && (
-          <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-blue-500 text-white rounded-2xl p-4 text-center">
-                <p className="text-xs opacity-80">Collections</p><p className="text-xl font-bold">${weeklyTotal.toFixed(0)}</p>
-              </div>
-              <div className="bg-green-500 text-white rounded-2xl p-4 text-center">
-                <p className="text-xs opacity-80">Deposits</p><p className="text-xl font-bold">${weeklyDeposit.toFixed(0)}</p>
-              </div>
-              <div className={`${Math.abs(weeklyTotal-weeklyDeposit)>0.01?'bg-red-500':'bg-gray-500'} text-white rounded-2xl p-4 text-center`}>
-                <p className="text-xs opacity-80">Variance</p><p className="text-xl font-bold">${(weeklyTotal-weeklyDeposit).toFixed(0)}</p>
+                  ))}
+                </div>
               </div>
             </div>
+          )}
+
+          {isAdmin && adminView === 'documents' && (
             <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h3 className="font-semibold mb-3">This Week - {user.location}</h3>
-              {weeklyData.length === 0 ? <p className="text-gray-500">No data this week</p> : (
+              <h2 className="font-semibold mb-4 flex items-center gap-2"><FolderOpen className="w-5 h-5" />Document Storage ({allDocs.length} files)</h2>
+              {allDocs.length === 0 ? <p className="text-gray-500">No documents uploaded yet</p> : (
                 <div className="space-y-2">
-                  {weeklyData.map(e => (
-                    <div key={e.id} className="flex justify-between p-2 bg-gray-50 rounded-lg text-sm">
-                      <span>{e.date}</span><span>${(e.total||0).toFixed(2)}</span>
+                  {allDocs.slice(0, 50).map((doc, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <File className="w-8 h-8 text-blue-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{doc.name}</p>
+                          <p className="text-xs text-gray-500">{doc.location} • {doc.entryDate}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setViewingFile(doc)} className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200">
+                        <Eye className="w-4 h-4" />View
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {view === 'ai' && (
-          <div className="bg-white rounded-2xl shadow-sm border mt-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 text-white">
-              <h2 className="font-semibold flex items-center gap-2"><Bot className="w-5 h-5" /> AI Assistant</h2>
-            </div>
-            <div className="h-64 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role==='user'?'justify-end':'justify-start'}`}>
-                  <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role==='user'?'bg-blue-600 text-white':'bg-gray-100'}`}>
-                    <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
-                  </div>
+          {isAdmin && adminView === 'export' && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 border">
+              <p className="text-sm text-gray-500 mb-4">Select location and date range to export data as CSV.</p>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Location</label>
+                  <select value={exportLocation} onChange={e => setExportLocation(e.target.value)} className="w-full p-2.5 border-2 rounded-lg">
+                    <option value="all">All Locations</option>
+                    {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
                 </div>
-              ))}
-              {aiLoading && <div className="flex justify-start"><div className="bg-gray-100 p-3 rounded-2xl"><Loader2 className="w-5 h-5 animate-spin" /></div></div>}
-            </div>
-            <div className="p-3 border-t flex gap-2">
-              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => e.key==='Enter' && askAI()} placeholder="Ask a question..." 
-                className="flex-1 p-3 border rounded-xl outline-none" />
-              <button onClick={askAI} disabled={aiLoading} className="px-4 bg-blue-600 text-white rounded-xl">
-                <Send className="w-4 h-4" />
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Date Range</label>
+                  <select value={exportRange} onChange={e => setExportRange(e.target.value)} className="w-full p-2.5 border-2 rounded-lg">
+                    {DATE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+              <button onClick={exportToCSV} className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2">
+                <Download className="w-5 h-5" />Export to CSV
               </button>
             </div>
-          </div>
-        )}
+          )}
+
+          {isAdmin && adminView === 'settings' && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 border">
+              <h2 className="font-semibold mb-4 flex items-center gap-2"><Lock className="w-5 h-5" />Change Admin Password</h2>
+              <div className="space-y-4 max-w-sm">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Current Password</label>
+                  <input type="password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-purple-400" placeholder="Enter current password" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">New Password</label>
+                  <input type="password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-purple-400" placeholder="Enter new password" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Confirm New Password</label>
+                  <input type="password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-purple-400" placeholder="Confirm new password" />
+                </div>
+                <button onClick={changeAdminPassword} className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700">Update Password</button>
+              </div>
+            </div>
+          )}
+
+          {isAdmin && adminView === 'records' && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 border">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold">All Records</h2>
+                <span className="text-sm text-gray-500">{entries.length} entries</span>
+              </div>
+              {entries.length === 0 ? <p className="text-gray-500">No entries yet</p> : (
+                <div className="space-y-3">
+                  {entries.slice(0, 50).map(e => (
+                    <div key={e.id} className="p-4 bg-gray-50 rounded-xl">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium">{e.date}</p>
+                          <p className="text-sm text-gray-600">{e.location} • {e.enteredBy}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">${e.total?.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">Deposit: ${e.depositTotal?.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      {getFileCount(e) > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {Object.entries(e.files || {}).map(([cat, fileList]) => (fileList || []).map((file, i) => (
+                            <button key={`${cat}-${i}`} onClick={() => setViewingFile(file)} className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                              <Eye className="w-3 h-3" />{file.name?.slice(0, 15)}...
+                            </button>
+                          )))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {isAdmin && adminView === 'ai' && (
+            <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 text-white">
+                <h2 className="font-semibold flex items-center gap-2"><Bot className="w-5 h-5" />AI Assistant</h2>
+              </div>
+              <div className="h-72 overflow-y-auto p-4 space-y-3">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}>
+                      <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+                    </div>
+                  </div>
+                ))}
+                {aiLoading && <div className="flex justify-start"><div className="bg-gray-100 p-3 rounded-2xl"><Loader2 className="w-5 h-5 animate-spin" /></div></div>}
+              </div>
+              <div className="p-3 border-t flex gap-2">
+                <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && askAI()} placeholder="Ask anything..." className="flex-1 p-3 border rounded-xl outline-none" />
+                <button onClick={askAI} disabled={aiLoading} className="px-4 bg-purple-600 text-white rounded-xl"><Send className="w-4 h-4" /></button>
+              </div>
+            </div>
+          )}
+
+          {/* STAFF VIEWS */}
+          {!isAdmin && view === 'settings' && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 border">
+              <h2 className="font-semibold mb-4 flex items-center gap-2"><Lock className="w-5 h-5" />Change Password</h2>
+              <div className="space-y-4 max-w-sm">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Current Password</label>
+                  <input type="password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-blue-400" placeholder="Enter current password" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">New Password</label>
+                  <input type="password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-blue-400" placeholder="Enter new password" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Confirm New Password</label>
+                  <input type="password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-blue-400" placeholder="Confirm new password" />
+                </div>
+                <button onClick={changeUserPassword} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">Update Password</button>
+              </div>
+            </div>
+          )}
+
+          {!isAdmin && view === 'entry' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl shadow-sm p-5 border">
+                <h2 className="font-semibold mb-4">Daily Cash Can</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <InputField label="Date" type="date" value={form.date} onChange={e => updateForm('date', e.target.value)} />
+                  <InputField label="Cash" prefix="$" value={form.cash} onChange={e => updateForm('cash', e.target.value)} />
+                  <InputField label="Credit Card (OTC)" prefix="$" value={form.creditCard} onChange={e => updateForm('creditCard', e.target.value)} />
+                  <InputField label="Checks (OTC)" prefix="$" value={form.checksOTC} onChange={e => updateForm('checksOTC', e.target.value)} />
+                  <InputField label="Insurance Checks" prefix="$" value={form.insuranceChecks} onChange={e => updateForm('insuranceChecks', e.target.value)} />
+                  <InputField label="Care Credit" prefix="$" value={form.careCredit} onChange={e => updateForm('careCredit', e.target.value)} />
+                  <InputField label="VCC" prefix="$" value={form.vcc} onChange={e => updateForm('vcc', e.target.value)} />
+                  <InputField label="EFTs" prefix="$" value={form.efts} onChange={e => updateForm('efts', e.target.value)} />
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm p-5 border">
+                <h2 className="font-semibold mb-4">Bank Deposit</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <InputField label="Cash" prefix="$" value={form.depositCash} onChange={e => updateForm('depositCash', e.target.value)} />
+                  <InputField label="Credit Card" prefix="$" value={form.depositCreditCard} onChange={e => updateForm('depositCreditCard', e.target.value)} />
+                  <InputField label="Checks" prefix="$" value={form.depositChecks} onChange={e => updateForm('depositChecks', e.target.value)} />
+                  <InputField label="Insurance" prefix="$" value={form.depositInsurance} onChange={e => updateForm('depositInsurance', e.target.value)} />
+                  <InputField label="Care Credit" prefix="$" value={form.depositCareCredit} onChange={e => updateForm('depositCareCredit', e.target.value)} />
+                  <InputField label="VCC" prefix="$" value={form.depositVCC} onChange={e => updateForm('depositVCC', e.target.value)} />
+                </div>
+                <div className="mt-3"><InputField label="Notes" value={form.notes} onChange={e => updateForm('notes', e.target.value)} /></div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm p-5 border">
+                <h2 className="font-semibold mb-4">Documents</h2>
+                <div className="space-y-4">
+                  <FileUpload label="EOD Day Sheets" files={files.eodDaySheets} onFilesChange={f => updateFiles('eodDaySheets', f)} onViewFile={setViewingFile} />
+                  <FileUpload label="EOD Bank Receipts" files={files.eodBankReceipts} onFilesChange={f => updateFiles('eodBankReceipts', f)} onViewFile={setViewingFile} />
+                  <FileUpload label="Other Files" files={files.otherFiles} onFilesChange={f => updateFiles('otherFiles', f)} onViewFile={setViewingFile} />
+                </div>
+              </div>
+              <button onClick={saveEntry} disabled={saving} className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Entry'}
+              </button>
+            </div>
+          )}
+
+          {!isAdmin && view === 'history' && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 border">
+              <h2 className="font-semibold mb-4">Your Entries ({entries.length})</h2>
+              {entries.length === 0 ? <p className="text-gray-500">No entries yet</p> : (
+                <div className="space-y-2">
+                  {entries.slice(0, 30).map(e => (
+                    <div key={e.id} className="p-3 bg-gray-50 rounded-xl flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{e.date}</p>
+                        <p className="text-xs text-gray-500">{e.enteredBy}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-green-600">${e.total?.toFixed(2)}</p>
+                        <p className="text-xs text-gray-500">Deposit: ${e.depositTotal?.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isAdmin && view === 'ai' && (
+            <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white">
+                <h2 className="font-semibold flex items-center gap-2"><Bot className="w-5 h-5" />AI Assistant</h2>
+              </div>
+              <div className="h-72 overflow-y-auto p-4 space-y-3">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
+                      <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+                    </div>
+                  </div>
+                ))}
+                {aiLoading && <div className="flex justify-start"><div className="bg-gray-100 p-3 rounded-2xl"><Loader2 className="w-5 h-5 animate-spin" /></div></div>}
+              </div>
+              <div className="p-3 border-t flex gap-2">
+                <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && askAI()} placeholder="Ask anything..." className="flex-1 p-3 border rounded-xl outline-none" />
+                <button onClick={askAI} disabled={aiLoading} className="px-4 bg-blue-600 text-white rounded-xl"><Send className="w-4 h-4" /></button>
+              </div>
+            </div>
+          )}
+
+          {!isAdmin && view === 'export' && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 border">
+              <p className="text-sm text-gray-500 mb-4">Export your Daily Recon data as CSV.</p>
+              <div className="mb-6">
+                <label className="text-xs text-gray-500 mb-1 block">Date Range</label>
+                <select value={exportRange} onChange={e => setExportRange(e.target.value)} className="w-full p-2.5 border-2 rounded-lg">
+                  {DATE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <button onClick={exportToCSV} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2">
+                <Download className="w-5 h-5" />Export to CSV
+              </button>
+            </div>
+          )}
+        </main>
       </div>
+
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
     </div>
   );
-        }
+}
