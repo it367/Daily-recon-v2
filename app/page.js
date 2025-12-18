@@ -354,8 +354,8 @@ export default function DailyReconSystem() {
             <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <DollarSign className="w-8 h-8 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">Daily Recon</h1>
-            <p className="text-gray-500 text-sm">Clinic Reconciliation System</p>
+            <h1 className="text-2xl font-bold text-gray-800">Clinic Tracking System</h1>
+            <p className="text-gray-500 text-sm">Kidshine Hawaii</p>
           </div>
 
           <div className="flex gap-2 mb-6">
