@@ -1,1359 +1,1010 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
-import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Receipt, CreditCard, Package, RefreshCw, Monitor, Menu, Eye, EyeOff, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings, MessageCircle, Sparkles, AlertCircle, Maximize2, Minimize2, Headphones, Search } from 'lucide-react';
+import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Receipt, CreditCard, Package, RefreshCw, Monitor, Menu, Eye, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings, MessageCircle, Sparkles } from 'lucide-react';
+
+const LOCATIONS = ['Pearl City', 'OS', 'Ortho', 'Lihue', 'Kapolei', 'Kailua', 'Honolulu', 'HHDS'];
+const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 const MODULES = [
-  { id: 'daily-recon', name: 'Daily Recon', icon: DollarSign, color: 'emerald', table: 'daily_recon' },
-  { id: 'billing-inquiry', name: 'Billing Inquiry', icon: Receipt, color: 'blue', table: 'billing_inquiries' },
-  { id: 'bills-payment', name: 'Bills Payment', icon: CreditCard, color: 'violet', table: 'bills_payment' },
-  { id: 'order-requests', name: 'Order Requests', icon: Package, color: 'amber', table: 'order_requests' },
-  { id: 'refund-requests', name: 'Refund Requests', icon: RefreshCw, color: 'rose', table: 'refund_requests' },
+  { id: 'daily-recon', name: 'Daily Recon', icon: DollarSign, color: 'emerald' },
+  { id: 'billing-inquiry', name: 'Billing Inquiry', icon: Receipt, color: 'blue' },
+  { id: 'bills-payment', name: 'Bills Payment', icon: CreditCard, color: 'violet' },
+  { id: 'order-requests', name: 'Order Requests', icon: Package, color: 'amber' },
+  { id: 'refund-requests', name: 'Refund Requests', icon: RefreshCw, color: 'rose' },
+  { id: 'it-requests', name: 'IT Requests', icon: Monitor, color: 'cyan' },
 ];
-
-const SUPPORT_MODULES = [
-  { id: 'it-requests', name: 'IT Requests', icon: Monitor, color: 'cyan', table: 'it_requests' },
-];
-
-const ALL_MODULES = [...MODULES, ...SUPPORT_MODULES];
 
 const MODULE_COLORS = {
-  'daily-recon': { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', accent: 'bg-emerald-500', light: 'bg-emerald-100', gradient: 'from-emerald-500 to-emerald-600' },
-  'billing-inquiry': { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', accent: 'bg-blue-500', light: 'bg-blue-100', gradient: 'from-blue-500 to-blue-600' },
-  'bills-payment': { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', accent: 'bg-violet-500', light: 'bg-violet-100', gradient: 'from-violet-500 to-violet-600' },
-  'order-requests': { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', accent: 'bg-amber-500', light: 'bg-amber-100', gradient: 'from-amber-500 to-amber-600' },
-  'refund-requests': { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', accent: 'bg-rose-500', light: 'bg-rose-100', gradient: 'from-rose-500 to-rose-600' },
-  'it-requests': { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', accent: 'bg-cyan-500', light: 'bg-cyan-100', gradient: 'from-cyan-500 to-cyan-600' },
+  'daily-recon': { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', accent: 'bg-emerald-500', light: 'bg-emerald-100' },
+  'billing-inquiry': { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', accent: 'bg-blue-500', light: 'bg-blue-100' },
+  'bills-payment': { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', accent: 'bg-violet-500', light: 'bg-violet-100' },
+  'order-requests': { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', accent: 'bg-amber-500', light: 'bg-amber-100' },
+  'refund-requests': { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', accent: 'bg-rose-500', light: 'bg-rose-100' },
+  'it-requests': { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', accent: 'bg-cyan-500', light: 'bg-cyan-100' },
 };
 
-const STATUS_OPTIONS = {
-  'billing-inquiry': ['Pending', 'In Progress', 'Resolved'],
-  'bills-payment': ['Pending', 'Approved', 'Paid'],
-  'order-requests': ['Pending', 'Approved', 'Paid'],
-  'refund-requests': ['Pending', 'Approved', 'Completed', 'Denied'],
-  'it-requests': ['Open', 'In Progress', 'Resolved', 'Closed'],
-};
+const IT_STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed'];
+const DATE_RANGES = ['This Week', 'Last 2 Weeks', 'This Month', 'Last Month', 'This Quarter', 'This Year', 'Custom'];
 
-const URGENCY_OPTIONS = ['Low', 'Medium', 'High', 'Critical'];
-const INQUIRY_TYPES = ['Balance Question', 'Insurance Claim', 'Payment Plan', 'Billing Error', 'Statement Request', 'Other'];
-const REFUND_TYPES = ['Overpayment', 'Cancelled Service', 'Insurance Adjustment', 'Billing Error', 'Other'];
+function InputField({ label, value, onChange, type = 'text', placeholder = '', prefix, options, large }) {
+  if (options) {
+    return (
+      <div className="flex flex-col">
+        <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+        <select value={value} onChange={onChange} className="w-full p-2.5 border-2 border-gray-200 rounded-xl outline-none transition-all hover:border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white">
+          <option value="">Select...</option>
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+    );
+  }
+  if (large) {
+    return (
+      <div className="flex flex-col">
+        <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+        <textarea value={value} onChange={onChange} rows={4} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none transition-all hover:border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none bg-white" placeholder={placeholder} />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col">
+      <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+      <div className="flex items-center border-2 border-gray-200 rounded-xl bg-white transition-all hover:border-gray-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+        {prefix && <span className="pl-3 text-gray-400 font-medium">{prefix}</span>}
+        <input type={type} value={value} onChange={onChange} className="w-full p-2.5 rounded-xl outline-none bg-transparent" placeholder={placeholder} />
+      </div>
+    </div>
+  );
+}
+
+function FileUpload({ label, files, onFilesChange, onViewFile }) {
+  const handleFileChange = (e) => {
+    const newFiles = Array.from(e.target.files).map(f => ({ name: f.name, size: f.size, type: f.type, url: URL.createObjectURL(f) }));
+    onFilesChange([...files, ...newFiles]);
+  };
+  return (
+    <div className="flex flex-col">
+      <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+      <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-slate-50 hover:border-blue-300 hover:from-blue-50 hover:to-indigo-50 transition-all">
+        <label className="flex flex-col items-center justify-center gap-2 cursor-pointer text-gray-500 hover:text-blue-600">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <Upload className="w-5 h-5 text-blue-600" />
+          </div>
+          <span className="text-sm font-medium">Click to upload files</span>
+          <input type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
+        </label>
+        {files.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {files.map((file, i) => (
+              <div key={i} className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-2 truncate flex-1">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <File className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="truncate text-sm font-medium text-gray-700">{file.name}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {file.url && <button onClick={() => onViewFile(file)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Eye className="w-4 h-4" /></button>}
+                  <button onClick={() => onFilesChange(files.filter((_, idx) => idx !== i))} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><X className="w-4 h-4" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FileViewer({ file, onClose }) {
+  if (!file) return null;
+  const isImage = file.type?.startsWith('image/') || file.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-4xl max-h-[90vh] w-full overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white/90 backdrop-blur-sm">
+          <h3 className="font-semibold truncate text-gray-800">{file.name}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6">
+          {isImage ? <img src={file.url} alt={file.name} className="max-w-full rounded-xl mx-auto shadow-lg" /> : (
+            <div className="text-center py-12 text-gray-500">
+              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <File className="w-10 h-10 text-gray-400" />
+              </div>
+              <p className="mb-4">Preview not available</p>
+              <a href={file.url} download={file.name} className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-shadow">Download File</a>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const colors = { 
+    'Open': 'bg-red-100 text-red-700 border-red-200', 
+    'In Progress': 'bg-amber-100 text-amber-700 border-amber-200', 
+    'Resolved': 'bg-emerald-100 text-emerald-700 border-emerald-200', 
+    'Closed': 'bg-gray-100 text-gray-600 border-gray-200', 
+    'Pending': 'bg-amber-100 text-amber-700 border-amber-200', 
+    'Approved': 'bg-blue-100 text-blue-700 border-blue-200', 
+    'Completed': 'bg-emerald-100 text-emerald-700 border-emerald-200', 
+    'Paid': 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+  };
+  return <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${colors[status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>{status || 'N/A'}</span>;
+}
+
+function FloatingChat({ messages, input, setInput, onSend, loading, isAdmin }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const messagesEndRef = useRef(null);
+  
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  return (
+    <>
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 hover:shadow-xl ${isOpen ? 'bg-gray-700' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`}
+      >
+        {isOpen ? <X className="w-6 h-6 text-white" /> : (
+          <div className="relative">
+            <MessageCircle className="w-6 h-6 text-white" />
+            <Sparkles className="w-3 h-3 text-yellow-300 absolute -top-1 -right-1" />
+          </div>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 z-50 w-96 h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200">
+          <div className={`p-4 text-white ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <Bot className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold">AI Assistant</h3>
+                <p className="text-xs text-white/80">Powered by Claude</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-md' : 'bg-white border border-gray-200 shadow-sm rounded-bl-md'}`}>
+                  <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-gray-200 p-3 rounded-2xl rounded-bl-md shadow-sm">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="p-3 border-t bg-white">
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                value={input} 
+                onChange={e => setInput(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && onSend()} 
+                placeholder="Ask me anything..." 
+                className="flex-1 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" 
+              />
+              <button 
+                onClick={onSend} 
+                disabled={loading} 
+                className="px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export default function ClinicSystem() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [locations, setLocations] = useState([]);
-  const [userLocations, setUserLocations] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [currentModule, setCurrentModule] = useState('daily-recon');
-  const [adminView, setAdminView] = useState('records');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [records, setRecords] = useState({});
+  const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [docSearch, setDocSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [notification, setNotification] = useState(null);
-  
-  // Login states
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginMode, setLoginMode] = useState('staff');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(null);
   
-  // AI Chat states
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatExpanded, setChatExpanded] = useState(false);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef(null);
+  const [activeModule, setActiveModule] = useState('daily-recon');
+  const [view, setView] = useState('entry');
+  const [adminView, setAdminView] = useState('records');
+  const [allData, setAllData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [viewingFile, setViewingFile] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [adminLocation, setAdminLocation] = useState('all');
+  const [editingStatus, setEditingStatus] = useState(null);
+  const [itCounter, setItCounter] = useState(1000);
   
-  // Form states
-  const [formData, setFormData] = useState({});
-  const [editingRecord, setEditingRecord] = useState(null);
-  const [uploadFiles, setUploadFiles] = useState([]);
-  
-  // User management
+  const [showAddUser, setShowAddUser] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [showUserPassword, setShowUserPassword] = useState(false);
-  const [userFormData, setUserFormData] = useState({ email: '', password: '', name: '', role: 'staff', locations: [] });
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', locations: [] });
   
-  // Settings
-  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
-  const [showCurrentPw, setShowCurrentPw] = useState(false);
-  const [showNewPw, setShowNewPw] = useState(false);
-  const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [nameForm, setNameForm] = useState('');
+  const [adminPwd, setAdminPwd] = useState(DEFAULT_ADMIN_PASSWORD);
+  const [pwdForm, setPwdForm] = useState({ current: '', new: '', confirm: '' });
+  
+  const [exportSystem, setExportSystem] = useState('daily-recon');
+  const [exportLocation, setExportLocation] = useState('all');
+  const [exportRange, setExportRange] = useState('This Month');
+  
+  const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: "👋 Hi! I'm your AI assistant. I can help with:\n\n• Data summaries & reports\n• Weekly comparisons\n• Location analytics\n• IT request status\n\nWhat would you like to know?" }]);
+  const [chatInput, setChatInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
-  // Filters
-  const [filterLocation, setFilterLocation] = useState('all');
-  const [filterModule, setFilterModule] = useState('all');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  const today = new Date().toISOString().split('T')[0];
+  const [forms, setForms] = useState({
+    'daily-recon': { date: today, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: '' },
+    'billing-inquiry': { patientName: '', chartNumber: '', dateOfService: '', amountInQuestion: '', bestContactMethod: '', bestContactTime: '', reviewedBy: '', initials: '', status: '', result: '' },
+    'bills-payment': { billStatus: '', date: today, vendor: '', description: '', amount: '', dueDate: '', managerInitials: '', apReviewed: '', dateReviewed: '', paid: '' },
+    'order-requests': { dateEntered: today, vendor: '', invoiceNumber: '', invoiceDate: '', dueDate: '', amount: '', enteredBy: '', notes: '' },
+    'refund-requests': { patientName: '', chartNumber: '', parentName: '', rpAddress: '', dateOfRequest: today, typeTransaction: '', description: '', amountRequested: '', bestContactMethod: '', eassistAudited: '', status: '' },
+    'it-requests': { dateReported: today, urgencyLevel: '', requesterName: '', deviceSystem: '', descriptionOfIssue: '', bestContactMethod: '', bestContactTime: '' }
+  });
+  const [files, setFiles] = useState({
+    'daily-recon': { eodDaySheets: [], eodBankReceipts: [], otherFiles: [] },
+    'billing-inquiry': { documentation: [] },
+    'bills-payment': { documentation: [] },
+    'order-requests': { orderInvoices: [] },
+    'refund-requests': { documentation: [] },
+    'it-requests': { documentation: [] }
+  });
 
-  useEffect(() => {
-    loadLocations();
+  useEffect(() => { 
+    loadAllData(); 
+    loadUsers();
+    const counter = localStorage.getItem('it-counter');
+    if (counter) setItCounter(parseInt(counter));
+    const storedPwd = localStorage.getItem('admin-password');
+    if (storedPwd) setAdminPwd(storedPwd);
   }, []);
 
-  useEffect(() => {
-    if (isLoggedIn && currentUser) {
-      loadRecords();
-      if (isAdmin) {
-        loadUsers();
-        loadDocuments();
-      }
-    }
-  }, [isLoggedIn, currentUser, selectedLocation, currentModule]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  const loadLocations = async () => {
-    const { data } = await supabase.from('locations').select('*').order('name');
-    if (data) setLocations(data);
+  const loadAllData = () => {
+    const data = {};
+    MODULES.forEach(m => {
+      const stored = localStorage.getItem(`clinic-${m.id}`);
+      if (stored) data[m.id] = JSON.parse(stored);
+    });
+    setAllData(data);
   };
 
-  const loadRecords = async () => {
-    setLoading(true);
-    const module = ALL_MODULES.find(m => m.id === currentModule);
-    if (!module) return;
-
-    let query = supabase.from(module.table).select('*');
-    
-    if (!isAdmin && selectedLocation) {
-      const loc = locations.find(l => l.name === selectedLocation);
-      if (loc) query = query.eq('location_id', loc.id);
-    }
-
-    const { data } = await query.order('created_at', { ascending: false });
-    setRecords(prev => ({ ...prev, [currentModule]: data || [] }));
-    setLoading(false);
-  };
-
-  const loadUsers = async () => {
-    const { data: usersData } = await supabase.from('users').select('*').order('name');
-    if (usersData) {
-      const usersWithLocations = await Promise.all(usersData.map(async (user) => {
-        const { data: locs } = await supabase
-          .from('user_locations')
-          .select('location_id, locations(name)')
-          .eq('user_id', user.id);
-        return { ...user, assignedLocations: locs?.map(l => l.locations?.name) || [] };
-      }));
-      setUsers(usersWithLocations);
+  const loadUsers = () => {
+    const stored = localStorage.getItem('clinic-users');
+    if (stored) setUsers(JSON.parse(stored));
+    else {
+      const defaultUsers = [{ id: '1', name: 'Demo User', email: 'demo', password: '1234', locations: ['Kailua', 'Honolulu'] }];
+      setUsers(defaultUsers);
+      localStorage.setItem('clinic-users', JSON.stringify(defaultUsers));
     }
   };
 
-  const loadDocuments = async () => {
-    const { data } = await supabase.from('documents').select('*').order('uploaded_at', { ascending: false });
-    if (data) setDocuments(data);
+  const saveUsers = (newUsers) => { setUsers(newUsers); localStorage.setItem('clinic-users', JSON.stringify(newUsers)); };
+
+  const handleStaffLogin = () => {
+    const user = users.find(u => u.email.toLowerCase() === loginEmail.toLowerCase() && u.password === loginPassword);
+    if (user) { setCurrentUser(user); if (user.locations.length === 1) setSelectedLocation(user.locations[0]); setMessage(''); }
+    else { setMessage('Invalid email or password'); setTimeout(() => setMessage(''), 3000); }
   };
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', loginEmail)
-      .single();
-
-    if (user && user.password === loginPassword) {
-      setCurrentUser(user);
-      setIsAdmin(['super_admin', 'finance_admin', 'admin'].includes(user.role));
-      
-      if (['super_admin', 'finance_admin', 'admin'].includes(user.role)) {
-        setUserLocations(locations.map(l => l.name));
-        setSelectedLocation(locations[0]?.name || '');
-      } else {
-        const { data: locs } = await supabase
-          .from('user_locations')
-          .select('locations(name)')
-          .eq('user_id', user.id);
-        const locNames = locs?.map(l => l.locations?.name) || [];
-        setUserLocations(locNames);
-        setSelectedLocation(locNames[0] || '');
-      }
-      
-      setIsLoggedIn(true);
-      setNameForm(user.name || '');
-      showNotification(`Welcome, ${user.name || user.email}!`);
-    } else {
-      showNotification('Invalid email or password', 'error');
-    }
-    setLoading(false);
+  const handleAdminLogin = () => {
+    if (adminPassword === adminPwd) { setIsAdmin(true); setCurrentUser({ name: 'Admin', isAdmin: true }); }
+    else { setMessage('Invalid admin password'); setTimeout(() => setMessage(''), 3000); }
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    setCurrentUser(null);
-    setLoginEmail('');
-    setLoginPassword('');
-    setChatMessages([]);
-    setRecords({});
+    setCurrentUser(null); setIsAdmin(false); setSelectedLocation(null); setLoginEmail(''); setLoginPassword(''); setAdminPassword(''); setView('entry'); setAdminView('records'); setPwdForm({ current: '', new: '', confirm: '' });
   };
 
-  const handleNumberInput = (e, field) => {
-    const value = e.target.value.replace(/[^0-9.]/g, '');
-    setFormData({ ...formData, [field]: value });
+  const addUser = () => {
+    if (!newUser.name || !newUser.email || !newUser.password || newUser.locations.length === 0) { setMessage('Please fill all fields and select at least one location'); setTimeout(() => setMessage(''), 3000); return; }
+    saveUsers([...users, { ...newUser, id: Date.now().toString() }]);
+    setNewUser({ name: '', email: '', password: '', locations: [] }); setShowAddUser(false);
+    setMessage('✓ User added!'); setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const module = ALL_MODULES.find(m => m.id === currentModule);
-    const loc = locations.find(l => l.name === selectedLocation);
-    
-    const recordData = {
-      ...formData,
-      location_id: loc?.id,
-      created_by: currentUser.id,
-      entered_by_name: currentUser.name || currentUser.email,
-    };
-
-    if (currentModule === 'it-requests' && !editingRecord) {
-      const { data: lastTicket } = await supabase
-        .from('it_requests')
-        .select('ticket_number')
-        .order('ticket_number', { ascending: false })
-        .limit(1);
-      recordData.ticket_number = (lastTicket?.[0]?.ticket_number || 0) + 1;
-    }
-
-    let result;
-    if (editingRecord) {
-      result = await supabase.from(module.table).update(recordData).eq('id', editingRecord.id);
-    } else {
-      result = await supabase.from(module.table).insert([recordData]);
-    }
-
-    if (result.error) {
-      showNotification(result.error.message, 'error');
-    } else {
-      // Handle file uploads
-      if (uploadFiles.length > 0) {
-        const recordId = editingRecord?.id || result.data?.[0]?.id;
-        for (const file of uploadFiles) {
-          const fileName = `${module.table}/${recordId}/${Date.now()}-${file.name}`;
-          await supabase.storage.from('clinic-documents').upload(fileName, file);
-          await supabase.from('documents').insert([{
-            record_type: module.table,
-            record_id: recordId,
-            file_name: file.name,
-            file_path: fileName,
-            uploaded_by: currentUser.id,
-          }]);
-        }
-      }
-      
-      showNotification(editingRecord ? 'Record updated!' : 'Record submitted!');
-      setFormData({});
-      setUploadFiles([]);
-      setEditingRecord(null);
-      loadRecords();
-      if (isAdmin) loadDocuments();
-    }
-    setLoading(false);
+  const updateUser = () => {
+    if (!editingUser.name || !editingUser.email || editingUser.locations.length === 0) { setMessage('Please fill all fields'); setTimeout(() => setMessage(''), 3000); return; }
+    saveUsers(users.map(u => u.id === editingUser.id ? editingUser : u)); setEditingUser(null);
+    setMessage('✓ User updated!'); setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleDeleteRecord = async (record) => {
-    if (!confirm('Delete this record?')) return;
-    const module = ALL_MODULES.find(m => m.id === currentModule);
-    await supabase.from(module.table).delete().eq('id', record.id);
-    showNotification('Record deleted');
-    loadRecords();
+  const deleteUser = (id) => { if (confirm('Delete this user?')) { saveUsers(users.filter(u => u.id !== id)); setMessage('✓ User deleted'); setTimeout(() => setMessage(''), 3000); } };
+
+  const changeAdminPassword = () => {
+    if (pwdForm.current !== adminPwd) { setMessage('Current password is incorrect'); setTimeout(() => setMessage(''), 3000); return; }
+    if (pwdForm.new.length < 4) { setMessage('New password must be at least 4 characters'); setTimeout(() => setMessage(''), 3000); return; }
+    if (pwdForm.new !== pwdForm.confirm) { setMessage('New passwords do not match'); setTimeout(() => setMessage(''), 3000); return; }
+    localStorage.setItem('admin-password', pwdForm.new); setAdminPwd(pwdForm.new); setPwdForm({ current: '', new: '', confirm: '' });
+    setMessage('✓ Password changed successfully!'); setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleSaveUser = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const userData = {
-      email: userFormData.email,
-      name: userFormData.name,
-      role: userFormData.role,
-      password: userFormData.password || (editingUser?.password || 'default123'),
-    };
-
-    let userId;
-    if (editingUser) {
-      if (!userFormData.password) delete userData.password;
-      await supabase.from('users').update(userData).eq('id', editingUser.id);
-      userId = editingUser.id;
-    } else {
-      const { data } = await supabase.from('users').insert([userData]).select();
-      userId = data?.[0]?.id;
-    }
-
-    // Update locations if staff role
-    if (userId && userFormData.role === 'staff') {
-      await supabase.from('user_locations').delete().eq('user_id', userId);
-      const locInserts = userFormData.locations.map(locName => {
-        const loc = locations.find(l => l.name === locName);
-        return { user_id: userId, location_id: loc?.id };
-      }).filter(l => l.location_id);
-      if (locInserts.length > 0) {
-        await supabase.from('user_locations').insert(locInserts);
-      }
-    }
-
-    showNotification(editingUser ? 'User updated!' : 'User created!');
-    setUserFormData({ email: '', password: '', name: '', role: 'staff', locations: [] });
-    setEditingUser(null);
-    loadUsers();
-    setLoading(false);
+  const changeUserPassword = () => {
+    if (pwdForm.current !== currentUser.password) { setMessage('Current password is incorrect'); setTimeout(() => setMessage(''), 3000); return; }
+    if (pwdForm.new.length < 4) { setMessage('New password must be at least 4 characters'); setTimeout(() => setMessage(''), 3000); return; }
+    if (pwdForm.new !== pwdForm.confirm) { setMessage('New passwords do not match'); setTimeout(() => setMessage(''), 3000); return; }
+    const updatedUsers = users.map(u => u.id === currentUser.id ? { ...u, password: pwdForm.new } : u);
+    saveUsers(updatedUsers); setCurrentUser({ ...currentUser, password: pwdForm.new }); setPwdForm({ current: '', new: '', confirm: '' });
+    setMessage('✓ Password changed successfully!'); setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleDeleteUser = async (user) => {
-    if (!confirm(`Delete user ${user.name || user.email}?`)) return;
-    await supabase.from('user_locations').delete().eq('user_id', user.id);
-    await supabase.from('users').delete().eq('id', user.id);
-    showNotification('User deleted');
-    loadUsers();
+  const toggleUserLocation = (loc, isEditing = false) => {
+    if (isEditing) { const locs = editingUser.locations.includes(loc) ? editingUser.locations.filter(l => l !== loc) : [...editingUser.locations, loc]; setEditingUser({ ...editingUser, locations: locs }); }
+    else { const locs = newUser.locations.includes(loc) ? newUser.locations.filter(l => l !== loc) : [...newUser.locations, loc]; setNewUser({ ...newUser, locations: locs }); }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    if (passwordForm.current !== currentUser.password) {
-      showNotification('Current password is incorrect', 'error');
-      return;
-    }
-    if (passwordForm.new.length < 4) {
-      showNotification('New password must be at least 4 characters', 'error');
-      return;
-    }
-    if (passwordForm.new !== passwordForm.confirm) {
-      showNotification('New passwords do not match', 'error');
-      return;
-    }
+  const updateForm = (module, field, value) => setForms(prev => ({ ...prev, [module]: { ...prev[module], [field]: value } }));
+  const updateFiles = (module, field, newFiles) => setFiles(prev => ({ ...prev, [module]: { ...prev[module], [field]: newFiles } }));
 
-    await supabase.from('users').update({ password: passwordForm.new }).eq('id', currentUser.id);
-    setCurrentUser({ ...currentUser, password: passwordForm.new });
-    setPasswordForm({ current: '', new: '', confirm: '' });
-    showNotification('Password changed successfully!');
+  const saveEntry = async (module) => {
+    setSaving(true);
+    const form = forms[module];
+    const entry = { ...form, files: Object.fromEntries(Object.entries(files[module]).map(([k, v]) => [k, v.map(f => ({ name: f.name, type: f.type, url: f.url }))])), location: selectedLocation, enteredBy: currentUser.name, timestamp: new Date().toISOString(), id: `${Date.now()}` };
+    if (module === 'daily-recon') { entry.total = ['cash', 'creditCard', 'checksOTC', 'insuranceChecks', 'careCredit', 'vcc', 'efts'].reduce((s, f) => s + (parseFloat(form[f]) || 0), 0); entry.depositTotal = ['depositCash', 'depositCreditCard', 'depositChecks', 'depositInsurance', 'depositCareCredit', 'depositVCC'].reduce((s, f) => s + (parseFloat(form[f]) || 0), 0); }
+    if (module === 'it-requests') { entry.requestNumber = `IT-${itCounter}`; entry.status = 'Open'; setItCounter(itCounter + 1); localStorage.setItem('it-counter', (itCounter + 1).toString()); }
+    const updated = [entry, ...(allData[module] || [])].slice(0, 500);
+    localStorage.setItem(`clinic-${module}`, JSON.stringify(updated)); setAllData(prev => ({ ...prev, [module]: updated }));
+    setMessage('✓ Entry saved!'); setTimeout(() => setMessage(''), 3000);
+    const resetForm = { ...forms[module] }; Object.keys(resetForm).forEach(k => { if (!k.includes('date') && !k.includes('Date')) resetForm[k] = ''; });
+    setForms(prev => ({ ...prev, [module]: resetForm })); setFiles(prev => ({ ...prev, [module]: Object.fromEntries(Object.entries(files[module]).map(([k]) => [k, []])) })); setSaving(false);
   };
 
-  const handleChangeName = async (e) => {
-    e.preventDefault();
-    if (!nameForm.trim()) {
-      showNotification('Name cannot be empty', 'error');
-      return;
-    }
-    await supabase.from('users').update({ name: nameForm }).eq('id', currentUser.id);
-    setCurrentUser({ ...currentUser, name: nameForm });
-    showNotification('Name updated successfully!');
+  const updateITStatus = (entryId, newStatus, resolutionNotes = '') => {
+    const updated = (allData['it-requests'] || []).map(e => e.id === entryId ? { ...e, status: newStatus, resolutionNotes, completedBy: 'Admin', statusUpdatedAt: new Date().toISOString() } : e);
+    localStorage.setItem('clinic-it-requests', JSON.stringify(updated)); setAllData(prev => ({ ...prev, 'it-requests': updated })); setEditingStatus(null);
+    setMessage('✓ Status updated!'); setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleChat = async (e) => {
-    e.preventDefault();
+  const exportToCSV = () => {
+    let filtered = allData[exportSystem] || [];
+    if (exportLocation !== 'all') filtered = filtered.filter(e => e.location === exportLocation);
+    if (filtered.length === 0) { setMessage('No data to export'); setTimeout(() => setMessage(''), 3000); return; }
+    const headers = Object.keys(filtered[0]).filter(k => k !== 'files');
+    const csv = [headers.join(','), ...filtered.map(row => headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${exportSystem}_${exportLocation}_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+    setMessage('✓ Export complete!'); setTimeout(() => setMessage(''), 3000);
+  };
+
+  const askAI = async () => {
     if (!chatInput.trim()) return;
-
-    const userMessage = { role: 'user', content: chatInput };
-    setChatMessages(prev => [...prev, userMessage]);
-    setChatInput('');
-    setChatLoading(true);
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...chatMessages, userMessage],
-          context: {
-            module: currentModule,
-            location: selectedLocation,
-            isAdmin,
-            userName: currentUser?.name || currentUser?.email,
-          },
-        }),
-      });
-      const data = await response.json();
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
-    } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
-    }
-    setChatLoading(false);
-  };
-
-  const exportCSV = () => {
-    const module = ALL_MODULES.find(m => m.id === currentModule);
-    const data = records[currentModule] || [];
-    if (data.length === 0) return;
-
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(r => Object.values(r).map(v => `"${v || ''}"`).join(',')).join('\n');
-    const csv = `${headers}\n${rows}`;
     
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${module.name.replace(/\s+/g, '-')}-export.csv`;
-    a.click();
+    const userMessage = chatInput;
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatInput('');
+    setAiLoading(true);
+    
+    let dataSummary = '\n📊 SYSTEM OVERVIEW:\n';
+    
+    const reconEntries = allData['daily-recon'] || [];
+    if (reconEntries.length > 0) {
+      const totalCash = reconEntries.reduce((sum, e) => sum + (e.total || 0), 0);
+      const totalDeposits = reconEntries.reduce((sum, e) => sum + (e.depositTotal || 0), 0);
+      dataSummary += `\n💰 DAILY RECON (${reconEntries.length} entries):`;
+      dataSummary += `\n   - Total Cash Collected: $${totalCash.toFixed(2)}`;
+      dataSummary += `\n   - Total Deposits: $${totalDeposits.toFixed(2)}`;
+    }
+    
+    const billingEntries = allData['billing-inquiry'] || [];
+    if (billingEntries.length > 0) {
+      const pending = billingEntries.filter(e => e.status === 'Pending').length;
+      const inProgress = billingEntries.filter(e => e.status === 'In Progress').length;
+      const resolved = billingEntries.filter(e => e.status === 'Resolved').length;
+      dataSummary += `\n\n🧾 BILLING INQUIRIES (${billingEntries.length} total):`;
+      dataSummary += `\n   - Pending: ${pending}, In Progress: ${inProgress}, Resolved: ${resolved}`;
+    }
+    
+    const billsEntries = allData['bills-payment'] || [];
+    if (billsEntries.length > 0) {
+      const unpaid = billsEntries.filter(e => e.paid !== 'Yes').length;
+      const totalAmount = billsEntries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+      dataSummary += `\n\n💳 BILLS PAYMENT (${billsEntries.length} total):`;
+      dataSummary += `\n   - Unpaid bills: ${unpaid}`;
+      dataSummary += `\n   - Total amount: $${totalAmount.toFixed(2)}`;
+    }
+    
+    const orderEntries = allData['order-requests'] || [];
+    if (orderEntries.length > 0) {
+      const totalOrders = orderEntries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+      dataSummary += `\n\n📦 ORDER REQUESTS (${orderEntries.length} total):`;
+      dataSummary += `\n   - Total order value: $${totalOrders.toFixed(2)}`;
+    }
+    
+    const refundEntries = allData['refund-requests'] || [];
+    if (refundEntries.length > 0) {
+      const pendingRefunds = refundEntries.filter(e => e.status === 'Pending').length;
+      const totalRefunds = refundEntries.reduce((sum, e) => sum + (parseFloat(e.amountRequested) || 0), 0);
+      dataSummary += `\n\n🔄 REFUND REQUESTS (${refundEntries.length} total):`;
+      dataSummary += `\n   - Pending: ${pendingRefunds}`;
+      dataSummary += `\n   - Total requested: $${totalRefunds.toFixed(2)}`;
+    }
+    
+    const itEntries = allData['it-requests'] || [];
+    if (itEntries.length > 0) {
+      const open = itEntries.filter(e => e.status === 'Open').length;
+      const inProgress = itEntries.filter(e => e.status === 'In Progress').length;
+      const critical = itEntries.filter(e => e.urgencyLevel === 'Critical' && e.status !== 'Closed').length;
+      dataSummary += `\n\n🖥️ IT REQUESTS (${itEntries.length} total):`;
+      dataSummary += `\n   - Open: ${open}, In Progress: ${inProgress}`;
+      dataSummary += `\n   - Critical issues: ${critical}`;
+    }
+    
+    dataSummary += `\n\n📍 LOCATIONS: ${LOCATIONS.join(', ')}`;
+    dataSummary += `\n👤 Current user: ${currentUser?.name || 'Unknown'}`;
+    dataSummary += `\n📍 Current location filter: ${isAdmin ? adminLocation : selectedLocation}`;
+    
+    try {
+      const response = await fetch('/api/chat', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ 
+          messages: [{ role: 'user', content: userMessage }], 
+          dataSummary 
+        }) 
+      });
+      
+      const data = await response.json();
+      const aiResponse = data.content?.[0]?.text || 'Sorry, I could not process that request.';
+      setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+      
+    } catch (error) {
+      console.error('AI Chat error:', error);
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '❌ Unable to connect to AI. Please check your connection and try again.' 
+      }]);
+    }
+    
+    setAiLoading(false);
   };
 
-  const getLocationName = (locationId) => {
-    return locations.find(l => l.id === locationId)?.name || 'Unknown';
+  const getModuleEntries = (moduleId) => {
+    const entries = allData[moduleId] || [];
+    if (isAdmin && adminLocation !== 'all') return entries.filter(e => e.location === adminLocation);
+    if (!isAdmin && selectedLocation) return entries.filter(e => e.location === selectedLocation);
+    return entries;
   };
 
-  const currentModuleData = ALL_MODULES.find(m => m.id === currentModule);
-  const colors = MODULE_COLORS[currentModule] || MODULE_COLORS['daily-recon'];
+  const getFileCount = (entry) => entry.files ? Object.values(entry.files).reduce((sum, arr) => sum + (arr?.length || 0), 0) : 0;
 
-  // Login Screen
-  if (!isLoggedIn) {
+  const getAllDocuments = () => {
+    const docs = [];
+    MODULES.forEach(m => { (allData[m.id] || []).forEach(entry => { if (entry.files) { Object.entries(entry.files).forEach(([cat, fileList]) => { (fileList || []).forEach(file => { docs.push({ ...file, module: m.name, location: entry.location, entryDate: entry.timestamp?.split('T')[0], enteredBy: entry.enteredBy, category: cat }); }); }); } }); });
+    return docs;
+  };
+
+  const currentColors = MODULE_COLORS[activeModule];
+
+  if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]" />
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-md relative z-10">
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-sm relative z-10 border border-white/20">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Building2 className="w-8 h-8 text-white" />
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
+              <Building2 className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">Clinic Management</h1>
-            <p className="text-gray-500 mt-1">Sign in to continue</p>
+            <h1 className="text-2xl font-bold text-gray-800">Clinic System</h1>
+            <p className="text-gray-500 text-sm mt-1">Healthcare Management Portal</p>
           </div>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
-              <input
-                type="text"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <div className="relative">
-                <input
-                  type={showLoginPassword ? 'text' : 'password'}
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all pr-12"
-                  placeholder="Enter your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
+
+          <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
+            <button onClick={() => setLoginMode('staff')} className={`flex-1 py-2.5 rounded-lg font-medium transition-all ${loginMode === 'staff' ? 'bg-white shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Staff</button>
+            <button onClick={() => setLoginMode('admin')} className={`flex-1 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1 ${loginMode === 'admin' ? 'bg-white shadow-md text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}><Shield className="w-4 h-4" />Admin</button>
+          </div>
+
+          {message && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{message}</div>}
+
+          {loginMode === 'staff' ? (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Email / Username</label>
+                <input type="text" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full p-3.5 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all" placeholder="Enter email" />
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
+                <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleStaffLogin()} className="w-full p-3.5 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all" placeholder="Enter password" />
+              </div>
+              <button onClick={handleStaffLogin} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all">Login →</button>
+              <p className="text-xs text-center text-gray-400">Demo: demo / 1234</p>
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Sign In'}
-            </button>
-          </form>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Admin Password</label>
+                <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} className="w-full p-3.5 border-2 border-gray-200 rounded-xl outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all" placeholder="Enter admin password" />
+              </div>
+              <button onClick={handleAdminLogin} className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-lg font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all">Login →</button>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
-  // Main App
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Notification */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white font-medium`}>
-          {notification.message}
-        </div>
-      )}
-
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-slate-800 to-slate-900 text-white transition-all duration-300 flex flex-col`}>
-        <div className="p-4 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 bg-gradient-to-br ${isAdmin ? 'from-purple-500 to-indigo-600' : 'from-blue-500 to-cyan-600'} rounded-xl flex items-center justify-center`}>
-              {isAdmin ? <Shield className="w-5 h-5" /> : <User className="w-5 h-5" />}
+  if (!isAdmin && !selectedLocation && currentUser.locations.length > 1) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-sm border border-white/20">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <User className="w-8 h-8 text-white" />
             </div>
-            {sidebarOpen && (
-              <div className="overflow-hidden">
-                <p className="font-semibold truncate">{currentUser?.name || currentUser?.email}</p>
-                <p className="text-xs text-slate-400 capitalize">{currentUser?.role?.replace('_', ' ')}</p>
-              </div>
-            )}
+            <h1 className="text-xl font-bold text-gray-800">Welcome, {currentUser.name}!</h1>
+            <p className="text-gray-500">Select your location to continue</p>
+          </div>
+          <div className="space-y-2">
+            {currentUser.locations.map(loc => (
+              <button key={loc} onClick={() => setSelectedLocation(loc)} className="w-full p-4 border-2 border-gray-200 rounded-xl text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:border-blue-300 flex items-center gap-3 transition-all group">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-500 transition-colors">
+                  <Building2 className="w-5 h-5 text-blue-600 group-hover:text-white transition-colors" />
+                </div>
+                <span className="font-medium text-gray-700">{loc}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={handleLogout} className="w-full mt-6 py-2.5 text-gray-500 hover:text-gray-700 transition-colors">← Back to Login</button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentModule = MODULES.find(m => m.id === activeModule);
+  const entries = getModuleEntries(activeModule);
+  const allDocs = getAllDocuments();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 flex">
+      <FileViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+      <FloatingChat messages={chatMessages} input={chatInput} setInput={setChatInput} onSend={askAI} loading={aiLoading} isAdmin={isAdmin} />
+
+      <div className={`fixed inset-y-0 left-0 z-40 w-72 bg-white shadow-xl transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className={`p-5 ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              {isAdmin ? <Shield className="w-6 h-6 text-white" /> : <User className="w-6 h-6 text-white" />}
+            </div>
+            <div className="text-white">
+              <p className="font-semibold">{currentUser.name}</p>
+              <p className="text-sm text-white/80">{isAdmin ? 'Administrator' : selectedLocation}</p>
+            </div>
           </div>
         </div>
 
-        {sidebarOpen && !isAdmin && userLocations.length > 1 && (
-          <div className="p-4 border-b border-slate-700">
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full bg-slate-700 border-0 rounded-lg px-3 py-2 text-sm"
-            >
-              {userLocations.map(loc => (
-                <option key={loc} value={loc}>{loc}</option>
-              ))}
+        {isAdmin && (
+          <div className="p-4 border-b bg-purple-50">
+            <label className="text-xs font-medium text-purple-700 mb-1.5 block">Filter by Location</label>
+            <select value={adminLocation} onChange={e => setAdminLocation(e.target.value)} className="w-full p-2.5 border-2 border-purple-200 rounded-xl text-sm focus:border-purple-400 outline-none bg-white">
+              <option value="all">📍 All Locations</option>
+              {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
         )}
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-2 px-2">Modules</p>
-          {MODULES.map(mod => {
-            const Icon = mod.icon;
-            const isActive = currentModule === mod.id && adminView === 'records';
+        {!isAdmin && currentUser.locations.length > 1 && (
+          <div className="p-4 border-b bg-blue-50">
+            <label className="text-xs font-medium text-blue-700 mb-1.5 block">Switch Location</label>
+            <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)} className="w-full p-2.5 border-2 border-blue-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white">
+              {currentUser.locations.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+        )}
+
+        <nav className="p-4 space-y-1.5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">Modules</p>
+          {MODULES.map(m => {
+            const colors = MODULE_COLORS[m.id];
+            const isActive = activeModule === m.id && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' && view !== 'settings';
             return (
-              <button
-                key={mod.id}
-                onClick={() => { setCurrentModule(mod.id); setAdminView('records'); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive ? `bg-${mod.color}-500/20 text-${mod.color}-400` : 'text-slate-300 hover:bg-slate-700/50'}`}
-              >
-                <Icon className={`w-5 h-5 ${isActive ? `text-${mod.color}-400` : ''}`} />
-                {sidebarOpen && <span className="text-sm">{mod.name}</span>}
+              <button key={m.id} onClick={() => { setActiveModule(m.id); setAdminView('records'); setView('entry'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${isActive ? `${colors.bg} ${colors.text} ${colors.border} border-2` : 'text-gray-600 hover:bg-gray-50'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? colors.light : 'bg-gray-100'}`}>
+                  <m.icon className={`w-4 h-4 ${isActive ? colors.text : 'text-gray-500'}`} />
+                </div>
+                <span className="text-sm font-medium">{m.name}</span>
               </button>
             );
           })}
-
-          <p className="text-xs text-slate-400 uppercase tracking-wider mt-6 mb-2 px-2">Support</p>
-          {SUPPORT_MODULES.map(mod => {
-            const Icon = mod.icon;
-            const isActive = currentModule === mod.id && adminView === 'records';
-            return (
-              <button
-                key={mod.id}
-                onClick={() => { setCurrentModule(mod.id); setAdminView('records'); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive ? `bg-${mod.color}-500/20 text-${mod.color}-400` : 'text-slate-300 hover:bg-slate-700/50'}`}
-              >
-                <Icon className={`w-5 h-5 ${isActive ? `text-${mod.color}-400` : ''}`} />
-                {sidebarOpen && <span className="text-sm">{mod.name}</span>}
-              </button>
-            );
-          })}
-
-          {isAdmin && (
+          
+          <div className="border-t my-4"></div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">Management</p>
+          
+          {isAdmin ? (
             <>
-              <p className="text-xs text-slate-400 uppercase tracking-wider mt-6 mb-2 px-2">Management</p>
-              <button
-                onClick={() => setAdminView('users')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'users' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
-              >
-                <Users className="w-5 h-5" />
-                {sidebarOpen && <span className="text-sm">Users</span>}
+              <button onClick={() => { setAdminView('users'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${adminView === 'users' ? 'bg-purple-50 text-purple-700 border-2 border-purple-200' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${adminView === 'users' ? 'bg-purple-100' : 'bg-gray-100'}`}><Users className="w-4 h-4" /></div>
+                <span className="text-sm font-medium">Users</span>
               </button>
-              <button
-                onClick={() => setAdminView('documents')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'documents' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
-              >
-                <FolderOpen className="w-5 h-5" />
-                {sidebarOpen && <span className="text-sm">Documents</span>}
-              </button>
-              <button
-                onClick={() => setAdminView('export')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'export' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
-              >
-                <Download className="w-5 h-5" />
-                {sidebarOpen && <span className="text-sm">Export</span>}
+              <button onClick={() => { setAdminView('export'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${adminView === 'export' ? 'bg-purple-50 text-purple-700 border-2 border-purple-200' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${adminView === 'export' ? 'bg-purple-100' : 'bg-gray-100'}`}><Download className="w-4 h-4" /></div>
+                <span className="text-sm font-medium">Export</span>
               </button>
             </>
+          ) : (
+            <button onClick={() => { setView('export'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${view === 'export' ? 'bg-blue-50 text-blue-700 border-2 border-blue-200' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${view === 'export' ? 'bg-blue-100' : 'bg-gray-100'}`}><Download className="w-4 h-4" /></div>
+              <span className="text-sm font-medium">Export</span>
+            </button>
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-700 space-y-1">
-          <button
-            onClick={() => setAdminView('settings')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'settings' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
-          >
-            <Settings className="w-5 h-5" />
-            {sidebarOpen && <span className="text-sm">Settings</span>}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
+          <button onClick={() => { isAdmin ? setAdminView('settings') : setView('settings'); setSidebarOpen(false); }} className={`w-full flex items-center justify-center gap-2 py-2.5 mb-2 rounded-xl transition-all ${(isAdmin ? adminView : view) === 'settings' ? (isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700') : 'text-gray-500 hover:bg-gray-200'}`}>
+            <Settings className="w-4 h-4" /> Settings
           </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-red-500/20 hover:text-red-400 transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            {sidebarOpen && <span className="text-sm">Logout</span>}
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all">
+            <LogOut className="w-4 h-4" /> Logout
           </button>
         </div>
-      </aside>
+      </div>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-h-screen">
-        {/* Header */}
-        <header className={`bg-gradient-to-r ${colors.gradient} text-white px-6 py-4 shadow-lg`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                <Menu className="w-5 h-5" />
-              </button>
-              <h1 className="text-xl font-semibold">
-                {adminView === 'users' ? 'User Management' : adminView === 'documents' ? 'Documents' : adminView === 'export' ? 'Export Data' : adminView === 'settings' ? 'Settings' : currentModuleData?.name}
-              </h1>
+      <div className="flex-1 flex flex-col min-h-screen">
+        <header className="bg-white shadow-sm border-b sticky top-0 z-30">
+          <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 hover:bg-gray-100 rounded-xl"><Menu className="w-5 h-5" /></button>
+              <div>
+                <h1 className="font-bold text-gray-800 text-lg">{isAdmin ? (adminView === 'users' ? 'User Management' : adminView === 'export' ? 'Export Data' : adminView === 'settings' ? 'Settings' : currentModule?.name) : (view === 'settings' ? 'Settings' : currentModule?.name)}</h1>
+                <p className="text-sm text-gray-500">{isAdmin ? (adminLocation === 'all' ? 'All Locations' : adminLocation) : selectedLocation}</p>
+              </div>
             </div>
-            {isAdmin && adminView === 'records' && (
-              <select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="bg-white/20 border-0 rounded-lg px-4 py-2 text-sm backdrop-blur-sm"
-              >
-                {locations.map(loc => (
-                  <option key={loc.id} value={loc.name} className="text-gray-800">{loc.name}</option>
-                ))}
-              </select>
-            )}
+            <div className={`px-3 py-1.5 rounded-lg text-xs font-medium ${currentColors?.light} ${currentColors?.text}`}>
+              {(allData[activeModule] || []).length} records
+            </div>
+          </div>
+          <div className="flex gap-2 px-4 pb-3 overflow-x-auto">
+            {isAdmin && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' ? (
+              [{ id: 'records', label: 'Records', icon: FileText }, { id: 'documents', label: 'Documents', icon: FolderOpen }].map(tab => (
+                <button key={tab.id} onClick={() => setAdminView(tab.id)} className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${adminView === tab.id ? `${currentColors?.accent} text-white shadow-lg` : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  <tab.icon className="w-4 h-4" />{tab.label}
+                </button>
+              ))
+            ) : !isAdmin && view !== 'settings' && view !== 'export' ? (
+              [{ id: 'entry', label: '+ New Entry' }, { id: 'history', label: 'History' }].map(tab => (
+                <button key={tab.id} onClick={() => setView(tab.id)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${view === tab.id ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{tab.label}</button>
+              ))
+            ) : null}
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="flex-1 p-6 overflow-y-auto">
-          {/* Settings View */}
-          {adminView === 'settings' && (
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className={`${colors.bg} ${colors.border} border rounded-2xl p-6`}>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5" /> Change Display Name
-                </h2>
-                <form onSubmit={handleChangeName} className="space-y-4">
-                  <input
-                    type="text"
-                    value={nameForm}
-                    onChange={(e) => setNameForm(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                    placeholder="Your display name"
-                  />
-                  <button type="submit" className={`px-6 py-2.5 bg-gradient-to-r ${colors.gradient} text-white rounded-xl font-medium hover:opacity-90`}>
-                    Update Name
-                  </button>
-                </form>
-              </div>
+        {message && <div className="mx-4 mt-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-700 rounded-xl text-center font-medium shadow-sm">{message}</div>}
 
-              <div className={`${colors.bg} ${colors.border} border rounded-2xl p-6`}>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <Lock className="w-5 h-5" /> Change Password
-                </h2>
-                <form onSubmit={handleChangePassword} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPw ? 'text' : 'password'}
-                        value={passwordForm.current}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
-                        required
-                      />
-                      <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showCurrentPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                    <div className="relative">
-                      <input
-                        type={showNewPw ? 'text' : 'password'}
-                        value={passwordForm.new}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
-                        required
-                      />
-                      <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showNewPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPw ? 'text' : 'password'}
-                        value={passwordForm.confirm}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
-                        required
-                      />
-                      <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showConfirmPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <button type="submit" className={`px-6 py-2.5 bg-gradient-to-r ${colors.gradient} text-white rounded-xl font-medium hover:opacity-90`}>
-                    Change Password
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Users View */}
-          {adminView === 'users' && isAdmin && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-sm border p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                  {editingUser ? 'Edit User' : 'Add New User'}
-                </h2>
-                <form onSubmit={handleSaveUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email/Username</label>
-                    <input
-                      type="text"
-                      value={userFormData.email}
-                      onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                    <input
-                      type="text"
-                      value={userFormData.name}
-                      onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password {editingUser && '(leave blank to keep)'}</label>
-                    <div className="relative">
-                      <input
-                        type={showUserPassword ? 'text' : 'password'}
-                        value={userFormData.password}
-                        onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
-                        {...(!editingUser && { required: true })}
-                      />
-                      <button type="button" onClick={() => setShowUserPassword(!showUserPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showUserPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <select
-                      value={userFormData.role}
-                      onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="staff">Staff</option>
-                      <option value="finance_admin">Finance Admin</option>
-                      <option value="super_admin">Super Admin</option>
-                    </select>
-                  </div>
-                  {userFormData.role === 'staff' && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Locations</label>
-                      <div className="flex flex-wrap gap-2">
-                        {locations.map(loc => (
-                          <label key={loc.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                            <input
-                              type="checkbox"
-                              checked={userFormData.locations.includes(loc.name)}
-                              onChange={(e) => {
-                                const locs = e.target.checked
-                                  ? [...userFormData.locations, loc.name]
-                                  : userFormData.locations.filter(l => l !== loc.name);
-                                setUserFormData({ ...userFormData, locations: locs });
-                              }}
-                              className="rounded text-purple-600"
-                            />
-                            <span className="text-sm">{loc.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="md:col-span-2 flex gap-2">
-                    <button type="submit" className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90">
-                      {editingUser ? 'Update User' : 'Create User'}
-                    </button>
-                    {editingUser && (
-                      <button type="button" onClick={() => { setEditingUser(null); setUserFormData({ email: '', password: '', name: '', role: 'staff', locations: [] }); }} className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300">
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">User</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Role</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Locations</th>
-                      <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {users.map(user => (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium">
-                              {(user.name || user.email).charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-800">{user.name || '-'}</p>
-                              <p className="text-sm text-gray-500">{user.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : user.role === 'finance_admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                            {user.role?.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {['super_admin', 'finance_admin'].includes(user.role) ? 'All Locations' : (user.assignedLocations?.join(', ') || '-')}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button onClick={() => { setEditingUser(user); setUserFormData({ email: user.email, password: '', name: user.name || '', role: user.role, locations: user.assignedLocations || [] }); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteUser(user)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Documents View */}
-          {adminView === 'documents' && isAdmin && (
+        <main className="flex-1 p-4 max-w-4xl mx-auto w-full pb-24">
+          {isAdmin && adminView === 'users' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={docSearch}
-                    onChange={(e) => setDocSearch(e.target.value)}
-                    placeholder="Search documents..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-700">{users.length} Users</h2>
+                <button onClick={() => setShowAddUser(true)} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"><Plus className="w-4 h-4" />Add User</button>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">File</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Related To</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Uploaded</th>
-                      <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {documents
-                      .filter(doc => !docSearch || doc.file_name.toLowerCase().includes(docSearch.toLowerCase()) || doc.record_type.toLowerCase().includes(docSearch.toLowerCase()))
-                      .map(doc => (
-                        <tr key={doc.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <File className="w-5 h-5 text-gray-400" />
-                              <span className="font-medium text-gray-800">{doc.file_name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-600">
-                              {doc.record_type} #{doc.record_id}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {new Date(doc.uploaded_at).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={async () => {
-                                const { data } = await supabase.storage.from('clinic-documents').createSignedUrl(doc.file_path, 60);
-                                if (data?.signedUrl) window.open(data.signedUrl, '_blank');
-                              }}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Export View */}
-          {adminView === 'export' && isAdmin && (
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
-                <h2 className="text-lg font-semibold text-gray-800">Export Records</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
-                    <select
-                      value={filterModule}
-                      onChange={(e) => setFilterModule(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="all">All Modules</option>
-                      {ALL_MODULES.map(m => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
+              {(showAddUser || editingUser) && (
+                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                  <h3 className="font-semibold mb-4 text-gray-800">{editingUser ? 'Edit User' : 'Add New User'}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Name" value={editingUser ? editingUser.name : newUser.name} onChange={e => editingUser ? setEditingUser({...editingUser, name: e.target.value}) : setNewUser({...newUser, name: e.target.value})} />
+                    <InputField label="Email / Username" value={editingUser ? editingUser.email : newUser.email} onChange={e => editingUser ? setEditingUser({...editingUser, email: e.target.value}) : setNewUser({...newUser, email: e.target.value})} />
+                    <div className="col-span-2"><InputField label={editingUser ? "New Password (leave blank to keep)" : "Password"} type="password" value={editingUser ? (editingUser.newPassword || '') : newUser.password} onChange={e => editingUser ? setEditingUser({...editingUser, newPassword: e.target.value, password: e.target.value || editingUser.password}) : setNewUser({...newUser, password: e.target.value})} /></div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <select
-                      value={filterLocation}
-                      onChange={(e) => setFilterLocation(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="all">All Locations</option>
-                      {locations.map(loc => (
-                        <option key={loc.id} value={loc.name}>{loc.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-                    <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-                    <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
-                  </div>
-                </div>
-                <button onClick={exportCSV} className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 flex items-center justify-center gap-2">
-                  <Download className="w-5 h-5" /> Export to CSV
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Records View */}
-          {adminView === 'records' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Form */}
-              <div className={`lg:col-span-1 ${colors.bg} ${colors.border} border rounded-2xl p-6`}>
-                <h2 className={`text-lg font-semibold ${colors.text} mb-4`}>
-                  {editingRecord ? 'Edit Record' : 'New Entry'}
-                </h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {currentModule === 'daily-recon' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <input type="date" value={formData.recon_date || ''} onChange={(e) => setFormData({ ...formData, recon_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Cash Can Amount</label>
-                        <input type="text" inputMode="decimal" value={formData.cash_can || ''} onChange={(e) => handleNumberInput(e, 'cash_can')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Bank Deposit Amount</label>
-                        <input type="text" inputMode="decimal" value={formData.bank_deposit || ''} onChange={(e) => handleNumberInput(e, 'bank_deposit')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                        <textarea value={formData.notes || ''} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={3} />
-                      </div>
-                    </>
-                  )}
-
-                  {currentModule === 'billing-inquiry' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
-                        <input type="text" value={formData.patient_name || ''} onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Parent Name</label>
-                        <input type="text" value={formData.parent_name || ''} onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-                        <input type="text" inputMode="numeric" value={formData.account_number || ''} onChange={(e) => handleNumberInput(e, 'account_number')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Type of Inquiry</label>
-                        <select value={formData.inquiry_type || ''} onChange={(e) => setFormData({ ...formData, inquiry_type: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required>
-                          <option value="">Select type...</option>
-                          {INQUIRY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={3} />
-                      </div>
-                      {isAdmin && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
-                              {STATUS_OPTIONS['billing-inquiry'].map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date Reviewed</label>
-                            <input type="date" value={formData.date_reviewed || ''} onChange={(e) => setFormData({ ...formData, date_reviewed: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {currentModule === 'bills-payment' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
-                        <input type="text" value={formData.vendor_name || ''} onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
-                        <input type="text" value={formData.invoice_number || ''} onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                        <input type="text" inputMode="decimal" value={formData.amount || ''} onChange={(e) => handleNumberInput(e, 'amount')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                        <input type="date" value={formData.due_date || ''} onChange={(e) => setFormData({ ...formData, due_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Paid</label>
-                        <select value={formData.paid ? 'yes' : 'no'} onChange={(e) => setFormData({ ...formData, paid: e.target.value === 'yes' })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
-                      </div>
-                      {isAdmin && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                          <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
-                            {STATUS_OPTIONS['bills-payment'].map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {currentModule === 'order-requests' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
-                        <input type="text" value={formData.vendor || ''} onChange={(e) => setFormData({ ...formData, vendor: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Item Description</label>
-                        <textarea value={formData.item_description || ''} onChange={(e) => setFormData({ ...formData, item_description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={2} required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost</label>
-                        <input type="text" inputMode="decimal" value={formData.estimated_cost || ''} onChange={(e) => handleNumberInput(e, 'estimated_cost')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" />
-                      </div>
-                      {isAdmin && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                          <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
-                            {STATUS_OPTIONS['order-requests'].map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {currentModule === 'refund-requests' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
-                        <input type="text" value={formData.patient_name || ''} onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-                        <input type="text" inputMode="numeric" value={formData.account_number || ''} onChange={(e) => handleNumberInput(e, 'account_number')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Refund Amount</label>
-                        <input type="text" inputMode="decimal" value={formData.refund_amount || ''} onChange={(e) => handleNumberInput(e, 'refund_amount')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Refund Type</label>
-                        <select value={formData.refund_type || ''} onChange={(e) => setFormData({ ...formData, refund_type: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required>
-                          <option value="">Select type...</option>
-                          {REFUND_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={2} />
-                      </div>
-                      {isAdmin && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                          <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
-                            {STATUS_OPTIONS['refund-requests'].map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {currentModule === 'it-requests' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Issue Title</label>
-                        <input type="text" value={formData.title || ''} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={3} required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Urgency</label>
-                        <select value={formData.urgency || 'Medium'} onChange={(e) => setFormData({ ...formData, urgency: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
-                          {URGENCY_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                      </div>
-                      {isAdmin && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select value={formData.status || 'Open'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
-                              {STATUS_OPTIONS['it-requests'].map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
-                            <input type="text" value={formData.assigned_to || ''} onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {/* File Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Attachments</label>
-                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-purple-300 transition-colors">
-                      <input type="file" multiple onChange={(e) => setUploadFiles([...uploadFiles, ...Array.from(e.target.files)])} className="hidden" id="file-upload" />
-                      <label htmlFor="file-upload" className="cursor-pointer">
-                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <span className="text-sm text-gray-500">Click to upload files</span>
-                      </label>
+                  <div className="mt-4">
+                    <label className="text-xs font-medium text-gray-600 mb-2 block">Assigned Locations</label>
+                    <div className="flex flex-wrap gap-2">
+                      {LOCATIONS.map(loc => (<button key={loc} onClick={() => toggleUserLocation(loc, !!editingUser)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(editingUser ? editingUser.locations : newUser.locations).includes(loc) ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{loc}</button>))}
                     </div>
-                    {uploadFiles.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {uploadFiles.map((file, i) => (
-                          <div key={i} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg">
-                            <span className="text-sm text-gray-600 truncate">{file.name}</span>
-                            <button type="button" onClick={() => setUploadFiles(uploadFiles.filter((_, idx) => idx !== i))} className="text-gray-400 hover:text-red-500">
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
-
-                  <div className="flex gap-2">
-                    <button type="submit" disabled={loading} className={`flex-1 py-3 bg-gradient-to-r ${colors.gradient} text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2`}>
-                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : editingRecord ? 'Update' : 'Submit'}
-                    </button>
-                    {editingRecord && (
-                      <button type="button" onClick={() => { setEditingRecord(null); setFormData({}); }} className="px-4 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300">
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              {/* Records List */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-800">
-                    {isAdmin ? 'All Records' : 'Your Submissions'}
-                  </h2>
-                  <span className="text-sm text-gray-500">{records[currentModule]?.length || 0} records</span>
-                </div>
-
-                {loading ? (
-                  <div className="bg-white rounded-2xl shadow-sm border p-8 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
-                  </div>
-                ) : (records[currentModule]?.length || 0) === 0 ? (
-                  <div className="bg-white rounded-2xl shadow-sm border p-8 text-center">
-                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No records found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {records[currentModule]?.map(record => (
-                      <div key={record.id} className={`bg-white rounded-2xl shadow-sm border ${colors.border} p-4 hover:shadow-md transition-shadow`}>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`px-2 py-0.5 ${colors.light} ${colors.text} rounded text-xs font-medium`}>
-                                {getLocationName(record.location_id)}
-                              </span>
-                              {record.status && (
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${record.status === 'Resolved' || record.status === 'Completed' || record.status === 'Paid' || record.status === 'Closed' ? 'bg-green-100 text-green-700' : record.status === 'In Progress' || record.status === 'Approved' ? 'bg-blue-100 text-blue-700' : record.status === 'Denied' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
-                                  {record.status}
-                                </span>
-                              )}
-                              {record.urgency && (
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${record.urgency === 'Critical' ? 'bg-red-100 text-red-700' : record.urgency === 'High' ? 'bg-orange-100 text-orange-700' : record.urgency === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}>
-                                  {record.urgency}
-                                </span>
-                              )}
-                              {record.ticket_number && (
-                                <span className="text-xs text-gray-500">#{record.ticket_number}</span>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-600 space-y-1">
-                              {currentModule === 'daily-recon' && (
-                                <>
-                                  <p><strong>Date:</strong> {record.recon_date}</p>
-                                  <p><strong>Cash Can:</strong> ${parseFloat(record.cash_can || 0).toFixed(2)} | <strong>Bank:</strong> ${parseFloat(record.bank_deposit || 0).toFixed(2)}</p>
-                                </>
-                              )}
-                              {currentModule === 'billing-inquiry' && (
-                                <>
-                                  <p><strong>Patient:</strong> {record.patient_name}</p>
-                                  <p><strong>Account:</strong> {record.account_number} | <strong>Type:</strong> {record.inquiry_type}</p>
-                                </>
-                              )}
-                              {currentModule === 'bills-payment' && (
-                                <>
-                                  <p><strong>Vendor:</strong> {record.vendor_name}</p>
-                                  <p><strong>Invoice:</strong> {record.invoice_number} | <strong>Amount:</strong> ${parseFloat(record.amount || 0).toFixed(2)}</p>
-                                </>
-                              )}
-                              {currentModule === 'order-requests' && (
-                                <>
-                                  <p><strong>Vendor:</strong> {record.vendor}</p>
-                                  <p className="truncate">{record.item_description}</p>
-                                </>
-                              )}
-                              {currentModule === 'refund-requests' && (
-                                <>
-                                  <p><strong>Patient:</strong> {record.patient_name}</p>
-                                  <p><strong>Amount:</strong> ${parseFloat(record.refund_amount || 0).toFixed(2)} | <strong>Type:</strong> {record.refund_type}</p>
-                                </>
-                              )}
-                              {currentModule === 'it-requests' && (
-                                <>
-                                  <p className="font-medium text-gray-800">{record.title}</p>
-                                  <p className="truncate">{record.description}</p>
-                                </>
-                              )}
-                              <p className="text-xs text-gray-400 mt-2">
-                                {new Date(record.created_at).toLocaleString()} {record.entered_by_name && `by ${record.entered_by_name}`}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-1 ml-4">
-                            <button onClick={() => { setEditingRecord(record); setFormData(record); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDeleteRecord(record)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Floating AI Chat */}
-      <div className="fixed bottom-6 right-6 z-40">
-        {chatOpen ? (
-          <div className={`bg-white rounded-2xl shadow-2xl border overflow-hidden transition-all duration-300 ${chatExpanded ? 'w-[500px] h-[600px]' : 'w-[380px] h-[480px]'}`}>
-            <div className={`bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} px-4 py-3 flex items-center justify-between`}>
-              <div className="flex items-center gap-2 text-white">
-                <Sparkles className="w-5 h-5" />
-                <span className="font-medium">AI Assistant</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setChatExpanded(!chatExpanded)} className="p-1.5 hover:bg-white/20 rounded-lg text-white">
-                  {chatExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
-                <button onClick={() => setChatOpen(false)} className="p-1.5 hover:bg-white/20 rounded-lg text-white">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ height: chatExpanded ? '480px' : '360px' }}>
-              {chatMessages.length === 0 && (
-                <div className="text-center text-gray-400 py-8">
-                  <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>How can I help you today?</p>
-                </div>
-              )}
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${msg.role === 'user' ? `bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} text-white` : 'bg-gray-100 text-gray-800'}`}>
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                </div>
-              ))}
-              {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 px-4 py-3 rounded-2xl">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
+                  <div className="flex gap-2 mt-5">
+                    <button onClick={editingUser ? updateUser : addUser} className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all">{editingUser ? 'Update' : 'Add'} User</button>
+                    <button onClick={() => { setShowAddUser(false); setEditingUser(null); }} className="px-6 py-3 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 transition-all">Cancel</button>
                   </div>
                 </div>
               )}
-              <div ref={chatEndRef} />
-            </div>
-            <form onSubmit={handleChat} className="p-3 border-t">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                />
-                <button type="submit" disabled={chatLoading || !chatInput.trim()} className={`p-2.5 bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} text-white rounded-xl hover:opacity-90 disabled:opacity-50`}>
-                  <Send className="w-5 h-5" />
-                </button>
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div className="divide-y">
+                  {users.map(u => (
+                    <div key={u.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center text-white font-semibold">{u.name.charAt(0)}</div>
+                        <div>
+                          <p className="font-medium text-gray-800">{u.name}</p>
+                          <p className="text-sm text-gray-500">{u.email}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">{u.locations.map(loc => <span key={loc} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">{loc}</span>)}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => setEditingUser(u)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit3 className="w-4 h-4" /></button>
+                        <button onClick={() => deleteUser(u.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </form>
-          </div>
-        ) : (
-          <button
-            onClick={() => setChatOpen(true)}
-            className={`w-14 h-14 bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center`}
-          >
-            <Sparkles className="w-6 h-6" />
-          </button>
-        )}
+            </div>
+          )}
+
+          {isAdmin && adminView === 'documents' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <h2 className="font-semibold mb-4 flex items-center gap-2 text-gray-800"><FolderOpen className="w-5 h-5 text-amber-500" />Document Storage <span className="text-sm font-normal text-gray-500">({allDocs.length} files)</span></h2>
+              {allDocs.length === 0 ? <p className="text-gray-500 text-center py-8">No documents uploaded yet</p> : (
+                <div className="space-y-2">{allDocs.slice(0, 50).map((doc, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl hover:from-blue-50 hover:to-indigo-50 transition-all">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0"><File className="w-5 h-5 text-blue-600" /></div>
+                      <div className="min-w-0"><p className="font-medium truncate text-gray-800">{doc.name}</p><p className="text-xs text-gray-500">{doc.module} • {doc.location} • {doc.entryDate}</p></div>
+                    </div>
+                    <button onClick={() => setViewingFile(doc)} className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"><Eye className="w-4 h-4" />View</button>
+                  </div>
+                ))}</div>
+              )}
+            </div>
+          )}
+
+          {isAdmin && adminView === 'export' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center"><Download className="w-6 h-6 text-white" /></div>
+                <div><h2 className="font-semibold text-gray-800">Export Data</h2><p className="text-sm text-gray-500">Download records as CSV file</p></div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">System</label><select value={exportSystem} onChange={e => setExportSystem(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none">{MODULES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">Location</label><select value={exportLocation} onChange={e => setExportLocation(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none"><option value="all">All Locations</option>{LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}</select></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">Date Range</label><select value={exportRange} onChange={e => setExportRange(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 outline-none">{DATE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+              </div>
+              <button onClick={exportToCSV} className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all"><Download className="w-5 h-5" />Export to CSV</button>
+            </div>
+          )}
+
+          {isAdmin && adminView === 'settings' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center"><Lock className="w-6 h-6 text-white" /></div>
+                <div><h2 className="font-semibold text-gray-800">Change Admin Password</h2><p className="text-sm text-gray-500">Update your admin credentials</p></div>
+              </div>
+              <div className="space-y-4 max-w-sm">
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">Current Password</label><input type="password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-purple-400" placeholder="Enter current password" /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">New Password</label><input type="password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-purple-400" placeholder="Enter new password" /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">Confirm New Password</label><input type="password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-purple-400" placeholder="Confirm new password" /></div>
+                <button onClick={changeAdminPassword} className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">Update Password</button>
+              </div>
+            </div>
+          )}
+
+          {isAdmin && adminView === 'records' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-800">All Records</h2>
+                <span className={`text-sm font-medium px-3 py-1 rounded-lg ${currentColors?.light} ${currentColors?.text}`}>{entries.length} entries</span>
+              </div>
+              {entries.length === 0 ? <p className="text-gray-500 text-center py-8">No entries yet</p> : (
+                <div className="space-y-3">{entries.slice(0, 50).map(e => (
+                  <div key={e.id} className={`p-4 rounded-xl border-2 ${currentColors?.border} ${currentColors?.bg} hover:shadow-md transition-all`}>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap"><p className="font-semibold text-gray-800">{e.requestNumber || e.timestamp?.split('T')[0]}</p><StatusBadge status={e.status || e.billStatus} /></div>
+                        <p className="text-sm text-gray-600 mt-1">{e.location} • {e.enteredBy}</p>
+                        {e.descriptionOfIssue && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{e.descriptionOfIssue}</p>}
+                        {e.total && <p className="text-lg font-bold text-emerald-600 mt-2">${e.total.toFixed(2)}</p>}
+                        {getFileCount(e) > 0 && (<div className="mt-3 flex flex-wrap gap-1">{Object.entries(e.files || {}).map(([cat, fileList]) => (fileList || []).map((file, i) => (<button key={`${cat}-${i}`} onClick={() => setViewingFile(file)} className="flex items-center gap-1 px-2 py-1 bg-white/80 text-gray-700 rounded-lg text-xs font-medium hover:bg-white transition-colors"><Eye className="w-3 h-3" />{file.name?.slice(0, 15)}...</button>)))}</div>)}
+                      </div>
+                      {activeModule === 'it-requests' && (
+                        <div>{editingStatus === e.id ? (
+                          <div className="space-y-2 w-44">
+                            <select defaultValue={e.status} id={`status-${e.id}`} className="w-full p-2 border-2 rounded-lg text-sm">{IT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select>
+                            <input type="text" id={`notes-${e.id}`} placeholder="Resolution notes" className="w-full p-2 border-2 rounded-lg text-sm" />
+                            <div className="flex gap-1">
+                              <button onClick={() => updateITStatus(e.id, document.getElementById(`status-${e.id}`).value, document.getElementById(`notes-${e.id}`).value)} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-xs font-medium">Save</button>
+                              <button onClick={() => setEditingStatus(null)} className="px-3 py-2 bg-gray-200 rounded-lg text-xs">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (<button onClick={() => setEditingStatus(e.id)} className="text-xs text-purple-600 flex items-center gap-1 font-medium hover:underline"><Edit3 className="w-3 h-3" />Update</button>)}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}</div>
+              )}
+            </div>
+          )}
+
+          {!isAdmin && view === 'settings' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center"><Lock className="w-6 h-6 text-white" /></div>
+                <div><h2 className="font-semibold text-gray-800">Change Password</h2><p className="text-sm text-gray-500">Update your account password</p></div>
+              </div>
+              <div className="space-y-4 max-w-sm">
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">Current Password</label><input type="password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400" placeholder="Enter current password" /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">New Password</label><input type="password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400" placeholder="Enter new password" /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1.5 block">Confirm New Password</label><input type="password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400" placeholder="Confirm new password" /></div>
+                <button onClick={changeUserPassword} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">Update Password</button>
+              </div>
+            </div>
+          )}
+
+          {!isAdmin && view === 'entry' && (
+            <div className="space-y-4">
+              {activeModule === 'daily-recon' && (<>
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2"><DollarSign className="w-5 h-5 text-emerald-500" />Daily Cash Can</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Date" type="date" value={forms['daily-recon'].date} onChange={e => updateForm('daily-recon', 'date', e.target.value)} />
+                    <InputField label="Cash" prefix="$" value={forms['daily-recon'].cash} onChange={e => updateForm('daily-recon', 'cash', e.target.value)} />
+                    <InputField label="Credit Card (OTC)" prefix="$" value={forms['daily-recon'].creditCard} onChange={e => updateForm('daily-recon', 'creditCard', e.target.value)} />
+                    <InputField label="Checks (OTC)" prefix="$" value={forms['daily-recon'].checksOTC} onChange={e => updateForm('daily-recon', 'checksOTC', e.target.value)} />
+                    <InputField label="Insurance Checks" prefix="$" value={forms['daily-recon'].insuranceChecks} onChange={e => updateForm('daily-recon', 'insuranceChecks', e.target.value)} />
+                    <InputField label="Care Credit" prefix="$" value={forms['daily-recon'].careCredit} onChange={e => updateForm('daily-recon', 'careCredit', e.target.value)} />
+                    <InputField label="VCC" prefix="$" value={forms['daily-recon'].vcc} onChange={e => updateForm('daily-recon', 'vcc', e.target.value)} />
+                    <InputField label="EFTs" prefix="$" value={forms['daily-recon'].efts} onChange={e => updateForm('daily-recon', 'efts', e.target.value)} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500">
+                  <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2"><Building2 className="w-5 h-5 text-blue-500" />Bank Deposit</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Cash" prefix="$" value={forms['daily-recon'].depositCash} onChange={e => updateForm('daily-recon', 'depositCash', e.target.value)} />
+                    <InputField label="Credit Card" prefix="$" value={forms['daily-recon'].depositCreditCard} onChange={e => updateForm('daily-recon', 'depositCreditCard', e.target.value)} />
+                    <InputField label="Checks" prefix="$" value={forms['daily-recon'].depositChecks} onChange={e => updateForm('daily-recon', 'depositChecks', e.target.value)} />
+                    <InputField label="Insurance" prefix="$" value={forms['daily-recon'].depositInsurance} onChange={e => updateForm('daily-recon', 'depositInsurance', e.target.value)} />
+                    <InputField label="Care Credit" prefix="$" value={forms['daily-recon'].depositCareCredit} onChange={e => updateForm('daily-recon', 'depositCareCredit', e.target.value)} />
+                    <InputField label="VCC" prefix="$" value={forms['daily-recon'].depositVCC} onChange={e => updateForm('daily-recon', 'depositVCC', e.target.value)} />
+                  </div>
+                  <div className="mt-4"><InputField label="Notes" value={forms['daily-recon'].notes} onChange={e => updateForm('daily-recon', 'notes', e.target.value)} /></div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg p-6">
+                  <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2"><File className="w-5 h-5 text-amber-500" />Documents</h2>
+                  <div className="space-y-4">
+                    <FileUpload label="EOD Day Sheets" files={files['daily-recon'].eodDaySheets} onFilesChange={f => updateFiles('daily-recon', 'eodDaySheets', f)} onViewFile={setViewingFile} />
+                    <FileUpload label="EOD Bank Receipts" files={files['daily-recon'].eodBankReceipts} onFilesChange={f => updateFiles('daily-recon', 'eodBankReceipts', f)} onViewFile={setViewingFile} />
+                    <FileUpload label="Other Files" files={files['daily-recon'].otherFiles} onFilesChange={f => updateFiles('daily-recon', 'otherFiles', f)} onViewFile={setViewingFile} />
+                  </div>
+                </div>
+              </>)}
+
+              {activeModule === 'billing-inquiry' && (<>
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Billing Inquiry</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Patient Name" value={forms['billing-inquiry'].patientName} onChange={e => updateForm('billing-inquiry', 'patientName', e.target.value)} />
+                    <InputField label="Chart Number" value={forms['billing-inquiry'].chartNumber} onChange={e => updateForm('billing-inquiry', 'chartNumber', e.target.value)} />
+                    <InputField label="Date of Service" type="date" value={forms['billing-inquiry'].dateOfService} onChange={e => updateForm('billing-inquiry', 'dateOfService', e.target.value)} />
+                    <InputField label="Amount in Question" prefix="$" value={forms['billing-inquiry'].amountInQuestion} onChange={e => updateForm('billing-inquiry', 'amountInQuestion', e.target.value)} />
+                    <InputField label="Best Contact Method" value={forms['billing-inquiry'].bestContactMethod} onChange={e => updateForm('billing-inquiry', 'bestContactMethod', e.target.value)} options={['Phone', 'Email', 'Text']} />
+                    <InputField label="Best Contact Time" value={forms['billing-inquiry'].bestContactTime} onChange={e => updateForm('billing-inquiry', 'bestContactTime', e.target.value)} />
+                    <InputField label="Reviewed By" value={forms['billing-inquiry'].reviewedBy} onChange={e => updateForm('billing-inquiry', 'reviewedBy', e.target.value)} />
+                    <InputField label="Initials" value={forms['billing-inquiry'].initials} onChange={e => updateForm('billing-inquiry', 'initials', e.target.value)} />
+                    <InputField label="Status" value={forms['billing-inquiry'].status} onChange={e => updateForm('billing-inquiry', 'status', e.target.value)} options={['Pending', 'In Progress', 'Resolved']} />
+                    <InputField label="Result" value={forms['billing-inquiry'].result} onChange={e => updateForm('billing-inquiry', 'result', e.target.value)} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg p-6"><FileUpload label="Documentation" files={files['billing-inquiry'].documentation} onFilesChange={f => updateFiles('billing-inquiry', 'documentation', f)} onViewFile={setViewingFile} /></div>
+              </>)}
+
+              {activeModule === 'bills-payment' && (<>
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Bills Payment</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Bill Status" value={forms['bills-payment'].billStatus} onChange={e => updateForm('bills-payment', 'billStatus', e.target.value)} options={['Pending', 'Approved', 'Paid']} />
+                    <InputField label="Date" type="date" value={forms['bills-payment'].date} onChange={e => updateForm('bills-payment', 'date', e.target.value)} />
+                    <InputField label="Vendor" value={forms['bills-payment'].vendor} onChange={e => updateForm('bills-payment', 'vendor', e.target.value)} />
+                    <InputField label="Description" value={forms['bills-payment'].description} onChange={e => updateForm('bills-payment', 'description', e.target.value)} />
+                    <InputField label="Amount" prefix="$" value={forms['bills-payment'].amount} onChange={e => updateForm('bills-payment', 'amount', e.target.value)} />
+                    <InputField label="Due Date" type="date" value={forms['bills-payment'].dueDate} onChange={e => updateForm('bills-payment', 'dueDate', e.target.value)} />
+                    <InputField label="Manager Initials" value={forms['bills-payment'].managerInitials} onChange={e => updateForm('bills-payment', 'managerInitials', e.target.value)} />
+                    <InputField label="AP Reviewed" value={forms['bills-payment'].apReviewed} onChange={e => updateForm('bills-payment', 'apReviewed', e.target.value)} options={['Yes', 'No']} />
+                    <InputField label="Date Reviewed" type="date" value={forms['bills-payment'].dateReviewed} onChange={e => updateForm('bills-payment', 'dateReviewed', e.target.value)} />
+                    <InputField label="Paid" value={forms['bills-payment'].paid} onChange={e => updateForm('bills-payment', 'paid', e.target.value)} options={['Yes', 'No']} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg p-6"><FileUpload label="Bills Documentation" files={files['bills-payment'].documentation} onFilesChange={f => updateFiles('bills-payment', 'documentation', f)} onViewFile={setViewingFile} /></div>
+              </>)}
+
+              {activeModule === 'order-requests' && (<>
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Order Request</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Date Entered" type="date" value={forms['order-requests'].dateEntered} onChange={e => updateForm('order-requests', 'dateEntered', e.target.value)} />
+                    <InputField label="Vendor" value={forms['order-requests'].vendor} onChange={e => updateForm('order-requests', 'vendor', e.target.value)} />
+                    <InputField label="Invoice Number" value={forms['order-requests'].invoiceNumber} onChange={e => updateForm('order-requests', 'invoiceNumber', e.target.value)} />
+                    <InputField label="Invoice Date" type="date" value={forms['order-requests'].invoiceDate} onChange={e => updateForm('order-requests', 'invoiceDate', e.target.value)} />
+                    <InputField label="Due Date" type="date" value={forms['order-requests'].dueDate} onChange={e => updateForm('order-requests', 'dueDate', e.target.value)} />
+                    <InputField label="Amount" prefix="$" value={forms['order-requests'].amount} onChange={e => updateForm('order-requests', 'amount', e.target.value)} />
+                    <InputField label="Entered By" value={forms['order-requests'].enteredBy} onChange={e => updateForm('order-requests', 'enteredBy', e.target.value)} />
+                    <InputField label="Notes" value={forms['order-requests'].notes} onChange={e => updateForm('order-requests', 'notes', e.target.value)} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg p-6"><FileUpload label="Order Invoices" files={files['order-requests'].orderInvoices} onFilesChange={f => updateFiles('order-requests', 'orderInvoices', f)} onViewFile={setViewingFile} /></div>
+              </>)}
+
+              {activeModule === 'refund-requests' && (<>
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Refund Request</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Patient Name" value={forms['refund-requests'].patientName} onChange={e => updateForm('refund-requests', 'patientName', e.target.value)} />
+                    <InputField label="Chart Number" value={forms['refund-requests'].chartNumber} onChange={e => updateForm('refund-requests', 'chartNumber', e.target.value)} />
+                    <InputField label="Parent Name" value={forms['refund-requests'].parentName} onChange={e => updateForm('refund-requests', 'parentName', e.target.value)} />
+                    <InputField label="RP Address" value={forms['refund-requests'].rpAddress} onChange={e => updateForm('refund-requests', 'rpAddress', e.target.value)} />
+                    <InputField label="Date of Request" type="date" value={forms['refund-requests'].dateOfRequest} onChange={e => updateForm('refund-requests', 'dateOfRequest', e.target.value)} />
+                    <InputField label="Type" value={forms['refund-requests'].typeTransaction} onChange={e => updateForm('refund-requests', 'typeTransaction', e.target.value)} options={['Refund', 'Credit', 'Adjustment']} />
+                    <InputField label="Amount Requested" prefix="$" value={forms['refund-requests'].amountRequested} onChange={e => updateForm('refund-requests', 'amountRequested', e.target.value)} />
+                    <InputField label="Contact Method" value={forms['refund-requests'].bestContactMethod} onChange={e => updateForm('refund-requests', 'bestContactMethod', e.target.value)} options={['Phone', 'Email', 'Text']} />
+                    <InputField label="Eassist Audited" value={forms['refund-requests'].eassistAudited} onChange={e => updateForm('refund-requests', 'eassistAudited', e.target.value)} options={['Yes', 'No', 'N/A']} />
+                    <InputField label="Status" value={forms['refund-requests'].status} onChange={e => updateForm('refund-requests', 'status', e.target.value)} options={['Pending', 'Approved', 'Completed', 'Denied']} />
+                    <div className="col-span-2"><InputField label="Description" value={forms['refund-requests'].description} onChange={e => updateForm('refund-requests', 'description', e.target.value)} /></div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg p-6"><FileUpload label="Documentation" files={files['refund-requests'].documentation} onFilesChange={f => updateFiles('refund-requests', 'documentation', f)} onViewFile={setViewingFile} /></div>
+              </>)}
+
+              {activeModule === 'it-requests' && (<>
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-2 text-gray-800">IT Request</h2>
+                  <p className="text-sm text-gray-500 mb-4">Request # will be auto-generated</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Date Reported" type="date" value={forms['it-requests'].dateReported} onChange={e => updateForm('it-requests', 'dateReported', e.target.value)} />
+                    <InputField label="Urgency Level" value={forms['it-requests'].urgencyLevel} onChange={e => updateForm('it-requests', 'urgencyLevel', e.target.value)} options={['Low', 'Medium', 'High', 'Critical']} />
+                    <InputField label="Requester Name" value={forms['it-requests'].requesterName} onChange={e => updateForm('it-requests', 'requesterName', e.target.value)} />
+                    <InputField label="Device / System" value={forms['it-requests'].deviceSystem} onChange={e => updateForm('it-requests', 'deviceSystem', e.target.value)} />
+                    <InputField label="Contact Method" value={forms['it-requests'].bestContactMethod} onChange={e => updateForm('it-requests', 'bestContactMethod', e.target.value)} options={['Phone', 'Email', 'Text']} />
+                    <InputField label="Contact Time" value={forms['it-requests'].bestContactTime} onChange={e => updateForm('it-requests', 'bestContactTime', e.target.value)} />
+                  </div>
+                  <div className="mt-4"><InputField label="Description of Issue" large value={forms['it-requests'].descriptionOfIssue} onChange={e => updateForm('it-requests', 'descriptionOfIssue', e.target.value)} placeholder="Describe the issue in detail..." /></div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-lg p-6"><FileUpload label="Documentation" files={files['it-requests'].documentation} onFilesChange={f => updateFiles('it-requests', 'documentation', f)} onViewFile={setViewingFile} /></div>
+              </>)}
+
+              <button onClick={() => saveEntry(activeModule)} disabled={saving} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50">
+                {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Save Entry'}
+              </button>
+            </div>
+          )}
+
+          {!isAdmin && view === 'history' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <h2 className="font-semibold mb-4 text-gray-800">Your Entries <span className="text-sm font-normal text-gray-500">({entries.length})</span></h2>
+              {entries.length === 0 ? <p className="text-gray-500 text-center py-8">No entries yet</p> : (
+                <div className="space-y-2">{entries.slice(0, 30).map(e => (
+                  <div key={e.id} className={`p-4 rounded-xl flex justify-between items-center ${currentColors?.bg} border ${currentColors?.border}`}>
+                    <div><p className="font-medium text-gray-800">{e.requestNumber || e.timestamp?.split('T')[0]}</p><p className="text-xs text-gray-500">{e.enteredBy}</p></div>
+                    <div className="text-right">{e.total && <p className="font-bold text-emerald-600">${e.total.toFixed(2)}</p>}<StatusBadge status={e.status || e.billStatus} /></div>
+                  </div>
+                ))}</div>
+              )}
+            </div>
+          )}
+
+          {!isAdmin && view === 'export' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center"><Download className="w-6 h-6 text-white" /></div>
+                <div><h2 className="font-semibold text-gray-800">Export Your Data</h2><p className="text-sm text-gray-500">Download your records as CSV</p></div>
+              </div>
+              <div className="mb-6">
+                <label className="text-xs font-medium text-gray-600 mb-1.5 block">Date Range</label>
+                <select value={exportRange} onChange={e => setExportRange(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 outline-none">{DATE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}</select>
+              </div>
+              <button onClick={exportToCSV} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all"><Download className="w-5 h-5" />Export to CSV</button>
+            </div>
+          )}
+        </main>
       </div>
+
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
     </div>
   );
 }
