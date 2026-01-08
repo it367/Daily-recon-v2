@@ -1,831 +1,1359 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Menu, Eye, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../lib/supabase';
+import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Receipt, CreditCard, Package, RefreshCw, Monitor, Menu, Eye, EyeOff, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings, MessageCircle, Sparkles, AlertCircle, Maximize2, Minimize2, Headphones, Search } from 'lucide-react';
 
-const LOCATIONS = ['Pearl City', 'OS', 'Ortho', 'Lihue', 'Kapolei', 'Kailua', 'Honolulu', 'HHDS'];
-const DEFAULT_ADMIN_PASSWORD = 'admin123';
-const DATE_RANGES = ['This Week', 'Last 2 Weeks', 'This Month', 'Last Month', 'This Quarter', 'This Year', 'Custom'];
+const MODULES = [
+  { id: 'daily-recon', name: 'Daily Recon', icon: DollarSign, color: 'emerald', table: 'daily_recon' },
+  { id: 'billing-inquiry', name: 'Billing Inquiry', icon: Receipt, color: 'blue', table: 'billing_inquiries' },
+  { id: 'bills-payment', name: 'Bills Payment', icon: CreditCard, color: 'violet', table: 'bills_payment' },
+  { id: 'order-requests', name: 'Order Requests', icon: Package, color: 'amber', table: 'order_requests' },
+  { id: 'refund-requests', name: 'Refund Requests', icon: RefreshCw, color: 'rose', table: 'refund_requests' },
+];
 
-function InputField({ label, value, onChange, type = 'text', placeholder = '', prefix }) {
-  return (
-    <div className="flex flex-col">
-      <label className="text-xs text-gray-500 mb-1">{label}</label>
-      <div className="flex items-center border-2 rounded-lg bg-white focus-within:border-blue-400">
-        {prefix && <span className="px-2 text-gray-400">{prefix}</span>}
-        <input type={type} value={value} onChange={onChange} className="w-full p-2.5 rounded-lg outline-none" placeholder={placeholder} />
-      </div>
-    </div>
-  );
-}
+const SUPPORT_MODULES = [
+  { id: 'it-requests', name: 'IT Requests', icon: Monitor, color: 'cyan', table: 'it_requests' },
+];
 
-function FileUpload({ label, files, onFilesChange, onViewFile }) {
-  const handleFileChange = (e) => {
-    const newFiles = Array.from(e.target.files).map(f => ({ name: f.name, size: f.size, type: f.type, url: URL.createObjectURL(f) }));
-    onFilesChange([...files, ...newFiles]);
-  };
-  return (
-    <div className="flex flex-col">
-      <label className="text-xs text-gray-500 mb-1">{label}</label>
-      <div className="border-2 border-dashed rounded-lg p-3 bg-gray-50">
-        <label className="flex items-center justify-center gap-2 cursor-pointer text-gray-500 hover:text-blue-600">
-          <Upload className="w-4 h-4" /><span className="text-sm">Click to upload</span>
-          <input type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
-        </label>
-        {files.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {files.map((file, i) => (
-              <div key={i} className="flex items-center justify-between bg-white p-2 rounded text-sm">
-                <div className="flex items-center gap-2 truncate flex-1">
-                  <File className="w-4 h-4 text-blue-500" /><span className="truncate">{file.name}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {file.url && <button onClick={() => onViewFile(file)} className="p-1 text-blue-500 hover:text-blue-700"><Eye className="w-4 h-4" /></button>}
-                  <button onClick={() => onFilesChange(files.filter((_, idx) => idx !== i))} className="p-1 text-red-500"><X className="w-4 h-4" /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+const ALL_MODULES = [...MODULES, ...SUPPORT_MODULES];
 
-function FileViewer({ file, onClose }) {
-  if (!file) return null;
-  const isImage = file.type?.startsWith('image/') || file.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-4xl max-h-[90vh] w-full overflow-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
-          <h3 className="font-semibold truncate">{file.name}</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-4">
-          {isImage ? <img src={file.url} alt={file.name} className="max-w-full rounded-lg mx-auto" /> : (
-            <div className="text-center py-8 text-gray-500">
-              <File className="w-16 h-16 mx-auto mb-4" /><p>Preview not available</p>
-              <a href={file.url} download={file.name} className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg">Download</a>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+const MODULE_COLORS = {
+  'daily-recon': { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', accent: 'bg-emerald-500', light: 'bg-emerald-100', gradient: 'from-emerald-500 to-emerald-600' },
+  'billing-inquiry': { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', accent: 'bg-blue-500', light: 'bg-blue-100', gradient: 'from-blue-500 to-blue-600' },
+  'bills-payment': { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', accent: 'bg-violet-500', light: 'bg-violet-100', gradient: 'from-violet-500 to-violet-600' },
+  'order-requests': { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', accent: 'bg-amber-500', light: 'bg-amber-100', gradient: 'from-amber-500 to-amber-600' },
+  'refund-requests': { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', accent: 'bg-rose-500', light: 'bg-rose-100', gradient: 'from-rose-500 to-rose-600' },
+  'it-requests': { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', accent: 'bg-cyan-500', light: 'bg-cyan-100', gradient: 'from-cyan-500 to-cyan-600' },
+};
 
-export default function DailyReconSystem() {
-  const [currentUser, setCurrentUser] = useState(null);
+const STATUS_OPTIONS = {
+  'billing-inquiry': ['Pending', 'In Progress', 'Resolved'],
+  'bills-payment': ['Pending', 'Approved', 'Paid'],
+  'order-requests': ['Pending', 'Approved', 'Paid'],
+  'refund-requests': ['Pending', 'Approved', 'Completed', 'Denied'],
+  'it-requests': ['Open', 'In Progress', 'Resolved', 'Closed'],
+};
+
+const URGENCY_OPTIONS = ['Low', 'Medium', 'High', 'Critical'];
+const INQUIRY_TYPES = ['Balance Question', 'Insurance Claim', 'Payment Plan', 'Billing Error', 'Statement Request', 'Other'];
+const REFUND_TYPES = ['Overpayment', 'Cancelled Service', 'Insurance Adjustment', 'Billing Error', 'Other'];
+
+export default function ClinicSystem() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [locations, setLocations] = useState([]);
+  const [userLocations, setUserLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [currentModule, setCurrentModule] = useState('daily-recon');
+  const [adminView, setAdminView] = useState('records');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [records, setRecords] = useState({});
   const [users, setUsers] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [docSearch, setDocSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
+  
+  // Login states
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [loginMode, setLoginMode] = useState('staff');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   
-  const [view, setView] = useState('entry');
-  const [adminView, setAdminView] = useState('records');
-  const [allData, setAllData] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [viewingFile, setViewingFile] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [adminLocation, setAdminLocation] = useState('all');
-  
-  const [showAddUser, setShowAddUser] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', locations: [] });
-  
-  const [adminPwd, setAdminPwd] = useState(DEFAULT_ADMIN_PASSWORD);
-  const [pwdForm, setPwdForm] = useState({ current: '', new: '', confirm: '' });
-  
-  const [exportLocation, setExportLocation] = useState('all');
-  const [exportRange, setExportRange] = useState('This Month');
-  
-  const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: "Hi! I can help with Daily Recon summaries. Try:\n• \"Weekly summary\"\n• \"Today's totals\"\n• \"Compare locations\"" }]);
+  // AI Chat states
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+  
+  // Form states
+  const [formData, setFormData] = useState({});
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]);
+  
+  // User management
+  const [editingUser, setEditingUser] = useState(null);
+  const [showUserPassword, setShowUserPassword] = useState(false);
+  const [userFormData, setUserFormData] = useState({ email: '', password: '', name: '', role: 'staff', locations: [] });
+  
+  // Settings
+  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [nameForm, setNameForm] = useState('');
 
-  const today = new Date().toISOString().split('T')[0];
-  const [form, setForm] = useState({ date: today, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: '' });
-  const [files, setFiles] = useState({ eodDaySheets: [], eodBankReceipts: [], otherFiles: [] });
+  // Filters
+  const [filterLocation, setFilterLocation] = useState('all');
+  const [filterModule, setFilterModule] = useState('all');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
 
-  useEffect(() => { 
-    loadData(); 
-    loadUsers();
-    const storedPwd = localStorage.getItem('admin-password');
-    if (storedPwd) setAdminPwd(storedPwd);
+  useEffect(() => {
+    loadLocations();
   }, []);
 
-  const loadData = () => {
-    const stored = localStorage.getItem('clinic-daily-recon');
-    if (stored) setAllData(JSON.parse(stored));
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      loadRecords();
+      if (isAdmin) {
+        loadUsers();
+        loadDocuments();
+      }
+    }
+  }, [isLoggedIn, currentUser, selectedLocation, currentModule]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const loadLocations = async () => {
+    const { data } = await supabase.from('locations').select('*').order('name');
+    if (data) setLocations(data);
   };
 
-  const loadUsers = () => {
-    const stored = localStorage.getItem('clinic-users');
-    if (stored) setUsers(JSON.parse(stored));
-    else {
-      const defaultUsers = [{ id: '1', name: 'Demo User', email: 'demo', password: '1234', locations: ['Kailua', 'Honolulu'] }];
-      setUsers(defaultUsers);
-      localStorage.setItem('clinic-users', JSON.stringify(defaultUsers));
+  const loadRecords = async () => {
+    setLoading(true);
+    const module = ALL_MODULES.find(m => m.id === currentModule);
+    if (!module) return;
+
+    let query = supabase.from(module.table).select('*');
+    
+    if (!isAdmin && selectedLocation) {
+      const loc = locations.find(l => l.name === selectedLocation);
+      if (loc) query = query.eq('location_id', loc.id);
+    }
+
+    const { data } = await query.order('created_at', { ascending: false });
+    setRecords(prev => ({ ...prev, [currentModule]: data || [] }));
+    setLoading(false);
+  };
+
+  const loadUsers = async () => {
+    const { data: usersData } = await supabase.from('users').select('*').order('name');
+    if (usersData) {
+      const usersWithLocations = await Promise.all(usersData.map(async (user) => {
+        const { data: locs } = await supabase
+          .from('user_locations')
+          .select('location_id, locations(name)')
+          .eq('user_id', user.id);
+        return { ...user, assignedLocations: locs?.map(l => l.locations?.name) || [] };
+      }));
+      setUsers(usersWithLocations);
     }
   };
 
-  const saveUsers = (newUsers) => {
-    setUsers(newUsers);
-    localStorage.setItem('clinic-users', JSON.stringify(newUsers));
+  const loadDocuments = async () => {
+    const { data } = await supabase.from('documents').select('*').order('uploaded_at', { ascending: false });
+    if (data) setDocuments(data);
   };
 
-  const handleStaffLogin = () => {
-    const user = users.find(u => u.email.toLowerCase() === loginEmail.toLowerCase() && u.password === loginPassword);
-    if (user) {
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', loginEmail)
+      .single();
+
+    if (user && user.password === loginPassword) {
       setCurrentUser(user);
-      if (user.locations.length === 1) setSelectedLocation(user.locations[0]);
-      setMessage('');
+      setIsAdmin(['super_admin', 'finance_admin', 'admin'].includes(user.role));
+      
+      if (['super_admin', 'finance_admin', 'admin'].includes(user.role)) {
+        setUserLocations(locations.map(l => l.name));
+        setSelectedLocation(locations[0]?.name || '');
+      } else {
+        const { data: locs } = await supabase
+          .from('user_locations')
+          .select('locations(name)')
+          .eq('user_id', user.id);
+        const locNames = locs?.map(l => l.locations?.name) || [];
+        setUserLocations(locNames);
+        setSelectedLocation(locNames[0] || '');
+      }
+      
+      setIsLoggedIn(true);
+      setNameForm(user.name || '');
+      showNotification(`Welcome, ${user.name || user.email}!`);
     } else {
-      setMessage('Invalid email or password');
-      setTimeout(() => setMessage(''), 3000);
+      showNotification('Invalid email or password', 'error');
     }
-  };
-
-  const handleAdminLogin = () => {
-    if (adminPassword === adminPwd) {
-      setIsAdmin(true);
-      setCurrentUser({ name: 'Admin', isAdmin: true });
-    } else {
-      setMessage('Invalid admin password');
-      setTimeout(() => setMessage(''), 3000);
-    }
+    setLoading(false);
   };
 
   const handleLogout = () => {
-    setCurrentUser(null);
+    setIsLoggedIn(false);
     setIsAdmin(false);
-    setSelectedLocation(null);
+    setCurrentUser(null);
     setLoginEmail('');
     setLoginPassword('');
-    setAdminPassword('');
-    setView('entry');
-    setAdminView('records');
-    setPwdForm({ current: '', new: '', confirm: '' });
+    setChatMessages([]);
+    setRecords({});
   };
 
-  const addUser = () => {
-    if (!newUser.name || !newUser.email || !newUser.password || newUser.locations.length === 0) {
-      setMessage('Please fill all fields and select at least one location');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    const user = { ...newUser, id: Date.now().toString() };
-    saveUsers([...users, user]);
-    setNewUser({ name: '', email: '', password: '', locations: [] });
-    setShowAddUser(false);
-    setMessage('✓ User added!');
-    setTimeout(() => setMessage(''), 3000);
+  const handleNumberInput = (e, field) => {
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+    setFormData({ ...formData, [field]: value });
   };
 
-  const updateUser = () => {
-    if (!editingUser.name || !editingUser.email || editingUser.locations.length === 0) {
-      setMessage('Please fill all fields');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    saveUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
-    setEditingUser(null);
-    setMessage('✓ User updated!');
-    setTimeout(() => setMessage(''), 3000);
-  };
-
-  const deleteUser = (id) => {
-    if (confirm('Delete this user?')) {
-      saveUsers(users.filter(u => u.id !== id));
-      setMessage('✓ User deleted');
-      setTimeout(() => setMessage(''), 3000);
-    }
-  };
-
-  const changeAdminPassword = () => {
-    if (pwdForm.current !== adminPwd) {
-      setMessage('Current password is incorrect');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    if (pwdForm.new.length < 4) {
-      setMessage('New password must be at least 4 characters');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    if (pwdForm.new !== pwdForm.confirm) {
-      setMessage('New passwords do not match');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    localStorage.setItem('admin-password', pwdForm.new);
-    setAdminPwd(pwdForm.new);
-    setPwdForm({ current: '', new: '', confirm: '' });
-    setMessage('✓ Password changed successfully!');
-    setTimeout(() => setMessage(''), 3000);
-  };
-
-  const changeUserPassword = () => {
-    if (pwdForm.current !== currentUser.password) {
-      setMessage('Current password is incorrect');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    if (pwdForm.new.length < 4) {
-      setMessage('New password must be at least 4 characters');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    if (pwdForm.new !== pwdForm.confirm) {
-      setMessage('New passwords do not match');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    const updatedUsers = users.map(u => u.id === currentUser.id ? { ...u, password: pwdForm.new } : u);
-    saveUsers(updatedUsers);
-    setCurrentUser({ ...currentUser, password: pwdForm.new });
-    setPwdForm({ current: '', new: '', confirm: '' });
-    setMessage('✓ Password changed successfully!');
-    setTimeout(() => setMessage(''), 3000);
-  };
-
-  const toggleUserLocation = (loc, isEditing = false) => {
-    if (isEditing) {
-      const locs = editingUser.locations.includes(loc) ? editingUser.locations.filter(l => l !== loc) : [...editingUser.locations, loc];
-      setEditingUser({ ...editingUser, locations: locs });
-    } else {
-      const locs = newUser.locations.includes(loc) ? newUser.locations.filter(l => l !== loc) : [...newUser.locations, loc];
-      setNewUser({ ...newUser, locations: locs });
-    }
-  };
-
-  const updateForm = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
-  const updateFiles = (field, newFiles) => setFiles(prev => ({ ...prev, [field]: newFiles }));
-
-  const saveEntry = async () => {
-    setSaving(true);
-    const entry = {
-      ...form,
-      files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.map(f => ({ name: f.name, type: f.type, url: f.url }))])),
-      location: selectedLocation,
-      enteredBy: currentUser.name,
-      timestamp: new Date().toISOString(),
-      id: `${Date.now()}`,
-      total: ['cash', 'creditCard', 'checksOTC', 'insuranceChecks', 'careCredit', 'vcc', 'efts'].reduce((s, f) => s + (parseFloat(form[f]) || 0), 0),
-      depositTotal: ['depositCash', 'depositCreditCard', 'depositChecks', 'depositInsurance', 'depositCareCredit', 'depositVCC'].reduce((s, f) => s + (parseFloat(form[f]) || 0), 0)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const module = ALL_MODULES.find(m => m.id === currentModule);
+    const loc = locations.find(l => l.name === selectedLocation);
+    
+    const recordData = {
+      ...formData,
+      location_id: loc?.id,
+      created_by: currentUser.id,
+      entered_by_name: currentUser.name || currentUser.email,
     };
 
-    const updated = [entry, ...allData].slice(0, 500);
-    localStorage.setItem('clinic-daily-recon', JSON.stringify(updated));
-    setAllData(updated);
-    setMessage('✓ Entry saved!');
-    setTimeout(() => setMessage(''), 3000);
+    if (currentModule === 'it-requests' && !editingRecord) {
+      const { data: lastTicket } = await supabase
+        .from('it_requests')
+        .select('ticket_number')
+        .order('ticket_number', { ascending: false })
+        .limit(1);
+      recordData.ticket_number = (lastTicket?.[0]?.ticket_number || 0) + 1;
+    }
 
-    setForm({ date: today, cash: '', creditCard: '', checksOTC: '', insuranceChecks: '', careCredit: '', vcc: '', efts: '', depositCash: '', depositCreditCard: '', depositChecks: '', depositInsurance: '', depositCareCredit: '', depositVCC: '', notes: '' });
-    setFiles({ eodDaySheets: [], eodBankReceipts: [], otherFiles: [] });
-    setSaving(false);
+    let result;
+    if (editingRecord) {
+      result = await supabase.from(module.table).update(recordData).eq('id', editingRecord.id);
+    } else {
+      result = await supabase.from(module.table).insert([recordData]);
+    }
+
+    if (result.error) {
+      showNotification(result.error.message, 'error');
+    } else {
+      // Handle file uploads
+      if (uploadFiles.length > 0) {
+        const recordId = editingRecord?.id || result.data?.[0]?.id;
+        for (const file of uploadFiles) {
+          const fileName = `${module.table}/${recordId}/${Date.now()}-${file.name}`;
+          await supabase.storage.from('clinic-documents').upload(fileName, file);
+          await supabase.from('documents').insert([{
+            record_type: module.table,
+            record_id: recordId,
+            file_name: file.name,
+            file_path: fileName,
+            uploaded_by: currentUser.id,
+          }]);
+        }
+      }
+      
+      showNotification(editingRecord ? 'Record updated!' : 'Record submitted!');
+      setFormData({});
+      setUploadFiles([]);
+      setEditingRecord(null);
+      loadRecords();
+      if (isAdmin) loadDocuments();
+    }
+    setLoading(false);
   };
 
-  const exportToCSV = () => {
-    let filtered = allData;
-    if (exportLocation !== 'all') filtered = filtered.filter(e => e.location === exportLocation);
-    
-    if (filtered.length === 0) { setMessage('No data to export'); setTimeout(() => setMessage(''), 3000); return; }
-    
-    const headers = Object.keys(filtered[0]).filter(k => k !== 'files');
-    const csv = [headers.join(','), ...filtered.map(row => headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
+  const handleDeleteRecord = async (record) => {
+    if (!confirm('Delete this record?')) return;
+    const module = ALL_MODULES.find(m => m.id === currentModule);
+    await supabase.from(module.table).delete().eq('id', record.id);
+    showNotification('Record deleted');
+    loadRecords();
+  };
+
+  const handleSaveUser = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const userData = {
+      email: userFormData.email,
+      name: userFormData.name,
+      role: userFormData.role,
+      password: userFormData.password || (editingUser?.password || 'default123'),
+    };
+
+    let userId;
+    if (editingUser) {
+      if (!userFormData.password) delete userData.password;
+      await supabase.from('users').update(userData).eq('id', editingUser.id);
+      userId = editingUser.id;
+    } else {
+      const { data } = await supabase.from('users').insert([userData]).select();
+      userId = data?.[0]?.id;
+    }
+
+    // Update locations if staff role
+    if (userId && userFormData.role === 'staff') {
+      await supabase.from('user_locations').delete().eq('user_id', userId);
+      const locInserts = userFormData.locations.map(locName => {
+        const loc = locations.find(l => l.name === locName);
+        return { user_id: userId, location_id: loc?.id };
+      }).filter(l => l.location_id);
+      if (locInserts.length > 0) {
+        await supabase.from('user_locations').insert(locInserts);
+      }
+    }
+
+    showNotification(editingUser ? 'User updated!' : 'User created!');
+    setUserFormData({ email: '', password: '', name: '', role: 'staff', locations: [] });
+    setEditingUser(null);
+    loadUsers();
+    setLoading(false);
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!confirm(`Delete user ${user.name || user.email}?`)) return;
+    await supabase.from('user_locations').delete().eq('user_id', user.id);
+    await supabase.from('users').delete().eq('id', user.id);
+    showNotification('User deleted');
+    loadUsers();
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.current !== currentUser.password) {
+      showNotification('Current password is incorrect', 'error');
+      return;
+    }
+    if (passwordForm.new.length < 4) {
+      showNotification('New password must be at least 4 characters', 'error');
+      return;
+    }
+    if (passwordForm.new !== passwordForm.confirm) {
+      showNotification('New passwords do not match', 'error');
+      return;
+    }
+
+    await supabase.from('users').update({ password: passwordForm.new }).eq('id', currentUser.id);
+    setCurrentUser({ ...currentUser, password: passwordForm.new });
+    setPasswordForm({ current: '', new: '', confirm: '' });
+    showNotification('Password changed successfully!');
+  };
+
+  const handleChangeName = async (e) => {
+    e.preventDefault();
+    if (!nameForm.trim()) {
+      showNotification('Name cannot be empty', 'error');
+      return;
+    }
+    await supabase.from('users').update({ name: nameForm }).eq('id', currentUser.id);
+    setCurrentUser({ ...currentUser, name: nameForm });
+    showNotification('Name updated successfully!');
+  };
+
+  const handleChat = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMessage = { role: 'user', content: chatInput };
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...chatMessages, userMessage],
+          context: {
+            module: currentModule,
+            location: selectedLocation,
+            isAdmin,
+            userName: currentUser?.name || currentUser?.email,
+          },
+        }),
+      });
+      const data = await response.json();
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+    } catch (error) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+    }
+    setChatLoading(false);
+  };
+
+  const exportCSV = () => {
+    const module = ALL_MODULES.find(m => m.id === currentModule);
+    const data = records[currentModule] || [];
+    if (data.length === 0) return;
+
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(r => Object.values(r).map(v => `"${v || ''}"`).join(',')).join('\n');
+    const csv = `${headers}\n${rows}`;
     
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `daily-recon_${exportLocation}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${module.name.replace(/\s+/g, '-')}-export.csv`;
     a.click();
-    setMessage('✓ Export complete!');
-    setTimeout(() => setMessage(''), 3000);
   };
 
-  const askAI = async () => {
-    if (!chatInput.trim()) return;
-    setChatMessages(prev => [...prev, { role: 'user', content: chatInput }]);
-    setChatInput('');
-    setAiLoading(true);
-    const dataSummary = `Daily Recon: ${allData.length} entries`;
-    try {
-      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: chatInput }], dataSummary }) });
-      const data = await response.json();
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.content?.[0]?.text || 'Sorry, error occurred.' }]);
-    } catch (e) { setChatMessages(prev => [...prev, { role: 'assistant', content: 'Error connecting to AI.' }]); }
-    setAiLoading(false);
+  const getLocationName = (locationId) => {
+    return locations.find(l => l.id === locationId)?.name || 'Unknown';
   };
 
-  const getEntries = () => {
-    if (isAdmin && adminLocation !== 'all') return allData.filter(e => e.location === adminLocation);
-    if (!isAdmin && selectedLocation) return allData.filter(e => e.location === selectedLocation);
-    return allData;
-  };
+  const currentModuleData = ALL_MODULES.find(m => m.id === currentModule);
+  const colors = MODULE_COLORS[currentModule] || MODULE_COLORS['daily-recon'];
 
-  const getFileCount = (entry) => entry.files ? Object.values(entry.files).reduce((sum, arr) => sum + (arr?.length || 0), 0) : 0;
-
-  const getAllDocuments = () => {
-    const docs = [];
-    allData.forEach(entry => {
-      if (entry.files) {
-        Object.entries(entry.files).forEach(([cat, fileList]) => {
-          (fileList || []).forEach(file => {
-            docs.push({ ...file, location: entry.location, entryDate: entry.timestamp?.split('T')[0], enteredBy: entry.enteredBy, category: cat });
-          });
-        });
-      }
-    });
-    return docs;
-  };
-
-  // ========== LOGIN SCREEN ==========
-  if (!currentUser) {
+  // Login Screen
+  if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="w-8 h-8 text-blue-600" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]" />
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-md relative z-10">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <Building2 className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">Clinic Tracking System</h1>
-            <p className="text-gray-500 text-sm">Kidshine Hawaii</p>
+            <h1 className="text-2xl font-bold text-gray-800">Clinic Management</h1>
+            <p className="text-gray-500 mt-1">Sign in to continue</p>
           </div>
-
-          <div className="flex gap-2 mb-6">
-            <button onClick={() => setLoginMode('staff')} className={`flex-1 py-2 rounded-lg font-medium ${loginMode === 'staff' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>Staff</button>
-            <button onClick={() => setLoginMode('admin')} className={`flex-1 py-2 rounded-lg font-medium ${loginMode === 'admin' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}><Shield className="w-4 h-4 inline mr-1" />Admin</button>
-          </div>
-
-          {message && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{message}</div>}
-
-          {loginMode === 'staff' ? (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Email / Username</label>
-                <input type="text" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full p-3 border-2 rounded-xl outline-none" placeholder="Enter email" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Password</label>
-                <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleStaffLogin()} className="w-full p-3 border-2 rounded-xl outline-none" placeholder="Enter password" />
-              </div>
-              <button onClick={handleStaffLogin} className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700">Login →</button>
-              <p className="text-xs text-center text-gray-400">Demo: demo / 1234</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Admin Password</label>
-                <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} className="w-full p-3 border-2 rounded-xl outline-none" placeholder="Enter admin password" />
-              </div>
-              <button onClick={handleAdminLogin} className="w-full py-4 bg-purple-600 text-white rounded-xl text-lg font-semibold hover:bg-purple-700">Login →</button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ========== LOCATION SELECTOR ==========
-  if (!isAdmin && !selectedLocation && currentUser.locations.length > 1) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <h1 className="text-xl font-bold text-gray-800">Welcome, {currentUser.name}</h1>
-            <p className="text-gray-500">Select your location</p>
-          </div>
-          <div className="space-y-2">
-            {currentUser.locations.map(loc => (
-              <button key={loc} onClick={() => setSelectedLocation(loc)} className="w-full p-4 border-2 rounded-xl text-left hover:bg-blue-50 hover:border-blue-400 flex items-center gap-3">
-                <Building2 className="w-5 h-5 text-blue-600" />
-                <span className="font-medium">{loc}</span>
-              </button>
-            ))}
-          </div>
-          <button onClick={handleLogout} className="w-full mt-6 py-2 text-gray-500 hover:text-gray-700">← Back to Login</button>
-        </div>
-      </div>
-    );
-  }
-
-  const entries = getEntries();
-  const allDocs = getAllDocuments();
-
-  // ========== MAIN APP ==========
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <FileViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 ${isAdmin ? 'bg-purple-100' : 'bg-blue-100'} rounded-xl flex items-center justify-center`}>
-              {isAdmin ? <Shield className="w-5 h-5 text-purple-600" /> : <User className="w-5 h-5 text-blue-600" />}
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
+              <input
+                type="text"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                placeholder="Enter your email"
+                required
+              />
             </div>
             <div>
-              <p className="font-semibold text-gray-800">{currentUser.name}</p>
-              <p className="text-xs text-gray-500">{isAdmin ? 'Administrator' : selectedLocation}</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="relative">
+                <input
+                  type={showLoginPassword ? 'text' : 'password'}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all pr-12"
+                  placeholder="Enter your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Sign In'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Main App
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white font-medium`}>
+          {notification.message}
+        </div>
+      )}
+
+      {/* Sidebar */}
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-slate-800 to-slate-900 text-white transition-all duration-300 flex flex-col`}>
+        <div className="p-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 bg-gradient-to-br ${isAdmin ? 'from-purple-500 to-indigo-600' : 'from-blue-500 to-cyan-600'} rounded-xl flex items-center justify-center`}>
+              {isAdmin ? <Shield className="w-5 h-5" /> : <User className="w-5 h-5" />}
+            </div>
+            {sidebarOpen && (
+              <div className="overflow-hidden">
+                <p className="font-semibold truncate">{currentUser?.name || currentUser?.email}</p>
+                <p className="text-xs text-slate-400 capitalize">{currentUser?.role?.replace('_', ' ')}</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {isAdmin && (
-          <div className="p-4 border-b">
-            <label className="text-xs text-gray-500">Filter Location</label>
-            <select value={adminLocation} onChange={e => setAdminLocation(e.target.value)} className="w-full mt-1 p-2 border rounded-lg text-sm">
-              <option value="all">All Locations</option>
-              {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+        {sidebarOpen && !isAdmin && userLocations.length > 1 && (
+          <div className="p-4 border-b border-slate-700">
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="w-full bg-slate-700 border-0 rounded-lg px-3 py-2 text-sm"
+            >
+              {userLocations.map(loc => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
             </select>
           </div>
         )}
 
-        {!isAdmin && currentUser.locations.length > 1 && (
-          <div className="p-4 border-b">
-            <label className="text-xs text-gray-500">Switch Location</label>
-            <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)} className="w-full mt-1 p-2 border rounded-lg text-sm">
-              {currentUser.locations.map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
-          </div>
-        )}
-
-        <nav className="p-4 space-y-1">
-          <button onClick={() => { setAdminView('records'); setView('entry'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${(isAdmin ? adminView === 'records' : view === 'entry' || view === 'history' || view === 'ai') && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' && view !== 'settings' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <DollarSign className="w-5 h-5" /><span className="text-sm font-medium">Daily Recon</span>
-          </button>
-          
-          <div className="border-t my-3"></div>
-          
-          {isAdmin ? (
-            <>
-              <button onClick={() => { setAdminView('users'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${adminView === 'users' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <Users className="w-5 h-5" /><span className="text-sm font-medium">Users</span>
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <p className="text-xs text-slate-400 uppercase tracking-wider mb-2 px-2">Modules</p>
+          {MODULES.map(mod => {
+            const Icon = mod.icon;
+            const isActive = currentModule === mod.id && adminView === 'records';
+            return (
+              <button
+                key={mod.id}
+                onClick={() => { setCurrentModule(mod.id); setAdminView('records'); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive ? `bg-${mod.color}-500/20 text-${mod.color}-400` : 'text-slate-300 hover:bg-slate-700/50'}`}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? `text-${mod.color}-400` : ''}`} />
+                {sidebarOpen && <span className="text-sm">{mod.name}</span>}
               </button>
-              <button onClick={() => { setAdminView('export'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${adminView === 'export' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <Download className="w-5 h-5" /><span className="text-sm font-medium">Export</span>
+            );
+          })}
+
+          <p className="text-xs text-slate-400 uppercase tracking-wider mt-6 mb-2 px-2">Support</p>
+          {SUPPORT_MODULES.map(mod => {
+            const Icon = mod.icon;
+            const isActive = currentModule === mod.id && adminView === 'records';
+            return (
+              <button
+                key={mod.id}
+                onClick={() => { setCurrentModule(mod.id); setAdminView('records'); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive ? `bg-${mod.color}-500/20 text-${mod.color}-400` : 'text-slate-300 hover:bg-slate-700/50'}`}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? `text-${mod.color}-400` : ''}`} />
+                {sidebarOpen && <span className="text-sm">{mod.name}</span>}
+              </button>
+            );
+          })}
+
+          {isAdmin && (
+            <>
+              <p className="text-xs text-slate-400 uppercase tracking-wider mt-6 mb-2 px-2">Management</p>
+              <button
+                onClick={() => setAdminView('users')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'users' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
+              >
+                <Users className="w-5 h-5" />
+                {sidebarOpen && <span className="text-sm">Users</span>}
+              </button>
+              <button
+                onClick={() => setAdminView('documents')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'documents' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
+              >
+                <FolderOpen className="w-5 h-5" />
+                {sidebarOpen && <span className="text-sm">Documents</span>}
+              </button>
+              <button
+                onClick={() => setAdminView('export')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'export' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
+              >
+                <Download className="w-5 h-5" />
+                {sidebarOpen && <span className="text-sm">Export</span>}
               </button>
             </>
-          ) : (
-            <button onClick={() => { setView('export'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${view === 'export' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
-              <Download className="w-5 h-5" /><span className="text-sm font-medium">Export</span>
-            </button>
           )}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
-          <button onClick={() => { isAdmin ? setAdminView('settings') : setView('settings'); setSidebarOpen(false); }} className={`w-full flex items-center justify-center gap-2 py-2 mb-2 rounded-lg ${(isAdmin ? adminView : view) === 'settings' ? (isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700') : 'text-gray-500 hover:bg-gray-100'}`}>
-            <Settings className="w-4 h-4" /> Settings
+        <div className="p-4 border-t border-slate-700 space-y-1">
+          <button
+            onClick={() => setAdminView('settings')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${adminView === 'settings' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'}`}
+          >
+            <Settings className="w-5 h-5" />
+            {sidebarOpen && <span className="text-sm">Settings</span>}
           </button>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 text-gray-500 hover:text-gray-700">
-            <LogOut className="w-4 h-4" /> Logout
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-red-500/20 hover:text-red-400 transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            {sidebarOpen && <span className="text-sm">Logout</span>}
           </button>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        <header className="bg-white shadow-sm border-b sticky top-0 z-30">
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2"><Menu className="w-5 h-5" /></button>
-              <div>
-                <h1 className="font-bold text-gray-800">{isAdmin ? (adminView === 'users' ? 'User Management' : adminView === 'export' ? 'Export Data' : adminView === 'settings' ? 'Settings' : 'Daily Recon') : (view === 'settings' ? 'Settings' : 'Daily Recon')}</h1>
-                <p className="text-xs text-gray-500">{isAdmin ? (adminLocation === 'all' ? 'All Locations' : adminLocation) : selectedLocation}</p>
-              </div>
+      <main className="flex-1 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className={`bg-gradient-to-r ${colors.gradient} text-white px-6 py-4 shadow-lg`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                <Menu className="w-5 h-5" />
+              </button>
+              <h1 className="text-xl font-semibold">
+                {adminView === 'users' ? 'User Management' : adminView === 'documents' ? 'Documents' : adminView === 'export' ? 'Export Data' : adminView === 'settings' ? 'Settings' : currentModuleData?.name}
+              </h1>
             </div>
-          </div>
-          <div className="flex gap-1 px-4 pb-3 overflow-x-auto">
-            {isAdmin && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' ? (
-              [{ id: 'records', label: 'Records', icon: FileText }, { id: 'documents', label: 'Documents', icon: FolderOpen }, { id: 'ai', label: 'AI Help', icon: Bot }].map(tab => (
-                <button key={tab.id} onClick={() => setAdminView(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 ${adminView === tab.id ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                  <tab.icon className="w-4 h-4" />{tab.label}
-                </button>
-              ))
-            ) : !isAdmin && view !== 'settings' && view !== 'export' ? (
-              [{ id: 'entry', label: 'New Entry' }, { id: 'history', label: 'History' }, { id: 'ai', label: 'AI Help' }].map(tab => (
-                <button key={tab.id} onClick={() => setView(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-medium ${view === tab.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{tab.label}</button>
-              ))
-            ) : null}
+            {isAdmin && adminView === 'records' && (
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                className="bg-white/20 border-0 rounded-lg px-4 py-2 text-sm backdrop-blur-sm"
+              >
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.name} className="text-gray-800">{loc.name}</option>
+                ))}
+              </select>
+            )}
           </div>
         </header>
 
-        {message && <div className="mx-4 mt-4 p-3 bg-green-100 text-green-700 rounded-xl text-center font-medium">{message}</div>}
-
-        <main className="flex-1 p-4 max-w-4xl mx-auto w-full">
-          {/* ADMIN VIEWS */}
-          {isAdmin && adminView === 'users' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-700">{users.length} Users</h2>
-                <button onClick={() => setShowAddUser(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg"><Plus className="w-4 h-4" />Add User</button>
+        {/* Content Area */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {/* Settings View */}
+          {adminView === 'settings' && (
+            <div className="max-w-2xl mx-auto space-y-6">
+              <div className={`${colors.bg} ${colors.border} border rounded-2xl p-6`}>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <User className="w-5 h-5" /> Change Display Name
+                </h2>
+                <form onSubmit={handleChangeName} className="space-y-4">
+                  <input
+                    type="text"
+                    value={nameForm}
+                    onChange={(e) => setNameForm(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
+                    placeholder="Your display name"
+                  />
+                  <button type="submit" className={`px-6 py-2.5 bg-gradient-to-r ${colors.gradient} text-white rounded-xl font-medium hover:opacity-90`}>
+                    Update Name
+                  </button>
+                </form>
               </div>
 
-              {(showAddUser || editingUser) && (
-                <div className="bg-white rounded-2xl shadow-sm p-5 border">
-                  <h3 className="font-semibold mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <InputField label="Name" value={editingUser ? editingUser.name : newUser.name} onChange={e => editingUser ? setEditingUser({...editingUser, name: e.target.value}) : setNewUser({...newUser, name: e.target.value})} />
-                    <InputField label="Email / Username" value={editingUser ? editingUser.email : newUser.email} onChange={e => editingUser ? setEditingUser({...editingUser, email: e.target.value}) : setNewUser({...newUser, email: e.target.value})} />
-                    <div className="col-span-2">
-                      <InputField label={editingUser ? "New Password (leave blank to keep)" : "Password"} type="password" value={editingUser ? (editingUser.newPassword || '') : newUser.password} onChange={e => editingUser ? setEditingUser({...editingUser, newPassword: e.target.value, password: e.target.value || editingUser.password}) : setNewUser({...newUser, password: e.target.value})} />
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <label className="text-xs text-gray-500 mb-2 block">Assigned Locations</label>
-                    <div className="flex flex-wrap gap-2">
-                      {LOCATIONS.map(loc => (
-                        <button key={loc} onClick={() => toggleUserLocation(loc, !!editingUser)} className={`px-3 py-1.5 rounded-full text-sm ${(editingUser ? editingUser.locations : newUser.locations).includes(loc) ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{loc}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button onClick={editingUser ? updateUser : addUser} className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-medium">{editingUser ? 'Update' : 'Add'} User</button>
-                    <button onClick={() => { setShowAddUser(false); setEditingUser(null); }} className="px-4 py-2 bg-gray-100 rounded-lg">Cancel</button>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                <div className="divide-y">
-                  {users.map(u => (
-                    <div key={u.id} className="p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{u.name}</p>
-                        <p className="text-sm text-gray-500">{u.email}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {u.locations.map(loc => <span key={loc} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{loc}</span>)}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setEditingUser(u)} className="p-2 text-gray-400 hover:text-blue-600"><Edit3 className="w-4 h-4" /></button>
-                        <button onClick={() => deleteUser(u.id)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isAdmin && adminView === 'documents' && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h2 className="font-semibold mb-4 flex items-center gap-2"><FolderOpen className="w-5 h-5" />Document Storage ({allDocs.length} files)</h2>
-              {allDocs.length === 0 ? <p className="text-gray-500">No documents uploaded yet</p> : (
-                <div className="space-y-2">
-                  {allDocs.slice(0, 50).map((doc, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <File className="w-8 h-8 text-blue-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{doc.name}</p>
-                          <p className="text-xs text-gray-500">{doc.location} • {doc.entryDate}</p>
-                        </div>
-                      </div>
-                      <button onClick={() => setViewingFile(doc)} className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200">
-                        <Eye className="w-4 h-4" />View
+              <div className={`${colors.bg} ${colors.border} border rounded-2xl p-6`}>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Lock className="w-5 h-5" /> Change Password
+                </h2>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPw ? 'text' : 'password'}
+                        value={passwordForm.current}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showCurrentPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {isAdmin && adminView === 'export' && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <p className="text-sm text-gray-500 mb-4">Select location and date range to export data as CSV.</p>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Location</label>
-                  <select value={exportLocation} onChange={e => setExportLocation(e.target.value)} className="w-full p-2.5 border-2 rounded-lg">
-                    <option value="all">All Locations</option>
-                    {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Date Range</label>
-                  <select value={exportRange} onChange={e => setExportRange(e.target.value)} className="w-full p-2.5 border-2 rounded-lg">
-                    {DATE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-              </div>
-              <button onClick={exportToCSV} className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2">
-                <Download className="w-5 h-5" />Export to CSV
-              </button>
-            </div>
-          )}
-
-          {isAdmin && adminView === 'settings' && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h2 className="font-semibold mb-4 flex items-center gap-2"><Lock className="w-5 h-5" />Change Admin Password</h2>
-              <div className="space-y-4 max-w-sm">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Current Password</label>
-                  <input type="password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-purple-400" placeholder="Enter current password" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">New Password</label>
-                  <input type="password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-purple-400" placeholder="Enter new password" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Confirm New Password</label>
-                  <input type="password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-purple-400" placeholder="Confirm new password" />
-                </div>
-                <button onClick={changeAdminPassword} className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700">Update Password</button>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPw ? 'text' : 'password'}
+                        value={passwordForm.new}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showNewPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPw ? 'text' : 'password'}
+                        value={passwordForm.confirm}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showConfirmPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button type="submit" className={`px-6 py-2.5 bg-gradient-to-r ${colors.gradient} text-white rounded-xl font-medium hover:opacity-90`}>
+                    Change Password
+                  </button>
+                </form>
               </div>
             </div>
           )}
 
-          {isAdmin && adminView === 'records' && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold">All Records</h2>
-                <span className="text-sm text-gray-500">{entries.length} entries</span>
-              </div>
-              {entries.length === 0 ? <p className="text-gray-500">No entries yet</p> : (
-                <div className="space-y-3">
-                  {entries.slice(0, 50).map(e => (
-                    <div key={e.id} className="p-4 bg-gray-50 rounded-xl">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{e.date}</p>
-                          <p className="text-sm text-gray-600">{e.location} • {e.enteredBy}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-green-600">${e.total?.toFixed(2)}</p>
-                          <p className="text-xs text-gray-500">Deposit: ${e.depositTotal?.toFixed(2)}</p>
-                        </div>
+          {/* Users View */}
+          {adminView === 'users' && isAdmin && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  {editingUser ? 'Edit User' : 'Add New User'}
+                </h2>
+                <form onSubmit={handleSaveUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email/Username</label>
+                    <input
+                      type="text"
+                      value={userFormData.email}
+                      onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={userFormData.name}
+                      onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password {editingUser && '(leave blank to keep)'}</label>
+                    <div className="relative">
+                      <input
+                        type={showUserPassword ? 'text' : 'password'}
+                        value={userFormData.password}
+                        onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 pr-12"
+                        {...(!editingUser && { required: true })}
+                      />
+                      <button type="button" onClick={() => setShowUserPassword(!showUserPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showUserPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select
+                      value={userFormData.role}
+                      onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="staff">Staff</option>
+                      <option value="finance_admin">Finance Admin</option>
+                      <option value="super_admin">Super Admin</option>
+                    </select>
+                  </div>
+                  {userFormData.role === 'staff' && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Locations</label>
+                      <div className="flex flex-wrap gap-2">
+                        {locations.map(loc => (
+                          <label key={loc.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                            <input
+                              type="checkbox"
+                              checked={userFormData.locations.includes(loc.name)}
+                              onChange={(e) => {
+                                const locs = e.target.checked
+                                  ? [...userFormData.locations, loc.name]
+                                  : userFormData.locations.filter(l => l !== loc.name);
+                                setUserFormData({ ...userFormData, locations: locs });
+                              }}
+                              className="rounded text-purple-600"
+                            />
+                            <span className="text-sm">{loc.name}</span>
+                          </label>
+                        ))}
                       </div>
-                      {getFileCount(e) > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {Object.entries(e.files || {}).map(([cat, fileList]) => (fileList || []).map((file, i) => (
-                            <button key={`${cat}-${i}`} onClick={() => setViewingFile(file)} className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                              <Eye className="w-3 h-3" />{file.name?.slice(0, 15)}...
+                    </div>
+                  )}
+                  <div className="md:col-span-2 flex gap-2">
+                    <button type="submit" className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90">
+                      {editingUser ? 'Update User' : 'Create User'}
+                    </button>
+                    {editingUser && (
+                      <button type="button" onClick={() => { setEditingUser(null); setUserFormData({ email: '', password: '', name: '', role: 'staff', locations: [] }); }} className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">User</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Role</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Locations</th>
+                      <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {users.map(user => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium">
+                              {(user.name || user.email).charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-800">{user.name || '-'}</p>
+                              <p className="text-sm text-gray-500">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : user.role === 'finance_admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                            {user.role?.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {['super_admin', 'finance_admin'].includes(user.role) ? 'All Locations' : (user.assignedLocations?.join(', ') || '-')}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={() => { setEditingUser(user); setUserFormData({ email: user.email, password: '', name: user.name || '', role: user.role, locations: user.assignedLocations || [] }); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteUser(user)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Documents View */}
+          {adminView === 'documents' && isAdmin && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={docSearch}
+                    onChange={(e) => setDocSearch(e.target.value)}
+                    placeholder="Search documents..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">File</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Related To</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Uploaded</th>
+                      <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {documents
+                      .filter(doc => !docSearch || doc.file_name.toLowerCase().includes(docSearch.toLowerCase()) || doc.record_type.toLowerCase().includes(docSearch.toLowerCase()))
+                      .map(doc => (
+                        <tr key={doc.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <File className="w-5 h-5 text-gray-400" />
+                              <span className="font-medium text-gray-800">{doc.file_name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-600">
+                              {doc.record_type} #{doc.record_id}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {new Date(doc.uploaded_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={async () => {
+                                const { data } = await supabase.storage.from('clinic-documents').createSignedUrl(doc.file_path, 60);
+                                if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                              }}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                            >
+                              <Eye className="w-4 h-4" />
                             </button>
-                          )))}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Export View */}
+          {adminView === 'export' && isAdmin && (
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+                <h2 className="text-lg font-semibold text-gray-800">Export Records</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
+                    <select
+                      value={filterModule}
+                      onChange={(e) => setFilterModule(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="all">All Modules</option>
+                      {ALL_MODULES.map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <select
+                      value={filterLocation}
+                      onChange={(e) => setFilterLocation(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="all">All Locations</option>
+                      {locations.map(loc => (
+                        <option key={loc.id} value={loc.name}>{loc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                    <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                    <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
+                  </div>
+                </div>
+                <button onClick={exportCSV} className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 flex items-center justify-center gap-2">
+                  <Download className="w-5 h-5" /> Export to CSV
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Records View */}
+          {adminView === 'records' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Form */}
+              <div className={`lg:col-span-1 ${colors.bg} ${colors.border} border rounded-2xl p-6`}>
+                <h2 className={`text-lg font-semibold ${colors.text} mb-4`}>
+                  {editingRecord ? 'Edit Record' : 'New Entry'}
+                </h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {currentModule === 'daily-recon' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input type="date" value={formData.recon_date || ''} onChange={(e) => setFormData({ ...formData, recon_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Cash Can Amount</label>
+                        <input type="text" inputMode="decimal" value={formData.cash_can || ''} onChange={(e) => handleNumberInput(e, 'cash_can')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Bank Deposit Amount</label>
+                        <input type="text" inputMode="decimal" value={formData.bank_deposit || ''} onChange={(e) => handleNumberInput(e, 'bank_deposit')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea value={formData.notes || ''} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={3} />
+                      </div>
+                    </>
+                  )}
+
+                  {currentModule === 'billing-inquiry' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
+                        <input type="text" value={formData.patient_name || ''} onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Parent Name</label>
+                        <input type="text" value={formData.parent_name || ''} onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                        <input type="text" inputMode="numeric" value={formData.account_number || ''} onChange={(e) => handleNumberInput(e, 'account_number')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Type of Inquiry</label>
+                        <select value={formData.inquiry_type || ''} onChange={(e) => setFormData({ ...formData, inquiry_type: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required>
+                          <option value="">Select type...</option>
+                          {INQUIRY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={3} />
+                      </div>
+                      {isAdmin && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
+                              {STATUS_OPTIONS['billing-inquiry'].map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date Reviewed</label>
+                            <input type="date" value={formData.date_reviewed || ''} onChange={(e) => setFormData({ ...formData, date_reviewed: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {currentModule === 'bills-payment' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                        <input type="text" value={formData.vendor_name || ''} onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
+                        <input type="text" value={formData.invoice_number || ''} onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                        <input type="text" inputMode="decimal" value={formData.amount || ''} onChange={(e) => handleNumberInput(e, 'amount')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                        <input type="date" value={formData.due_date || ''} onChange={(e) => setFormData({ ...formData, due_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Paid</label>
+                        <select value={formData.paid ? 'yes' : 'no'} onChange={(e) => setFormData({ ...formData, paid: e.target.value === 'yes' })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </div>
+                      {isAdmin && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                          <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
+                            {STATUS_OPTIONS['bills-payment'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
                         </div>
                       )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                    </>
+                  )}
 
-          {isAdmin && adminView === 'ai' && (
-            <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 text-white">
-                <h2 className="font-semibold flex items-center gap-2"><Bot className="w-5 h-5" />AI Assistant</h2>
-              </div>
-              <div className="h-72 overflow-y-auto p-4 space-y-3">
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}>
-                      <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
-                    </div>
-                  </div>
-                ))}
-                {aiLoading && <div className="flex justify-start"><div className="bg-gray-100 p-3 rounded-2xl"><Loader2 className="w-5 h-5 animate-spin" /></div></div>}
-              </div>
-              <div className="p-3 border-t flex gap-2">
-                <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && askAI()} placeholder="Ask anything..." className="flex-1 p-3 border rounded-xl outline-none" />
-                <button onClick={askAI} disabled={aiLoading} className="px-4 bg-purple-600 text-white rounded-xl"><Send className="w-4 h-4" /></button>
-              </div>
-            </div>
-          )}
-
-          {/* STAFF VIEWS */}
-          {!isAdmin && view === 'settings' && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h2 className="font-semibold mb-4 flex items-center gap-2"><Lock className="w-5 h-5" />Change Password</h2>
-              <div className="space-y-4 max-w-sm">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Current Password</label>
-                  <input type="password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-blue-400" placeholder="Enter current password" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">New Password</label>
-                  <input type="password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-blue-400" placeholder="Enter new password" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Confirm New Password</label>
-                  <input type="password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} className="w-full p-2.5 border-2 rounded-lg outline-none focus:border-blue-400" placeholder="Confirm new password" />
-                </div>
-                <button onClick={changeUserPassword} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">Update Password</button>
-              </div>
-            </div>
-          )}
-
-          {!isAdmin && view === 'entry' && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-2xl shadow-sm p-5 border">
-                <h2 className="font-semibold mb-4">Daily Cash Can</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  <InputField label="Date" type="date" value={form.date} onChange={e => updateForm('date', e.target.value)} />
-                  <InputField label="Cash" prefix="$" value={form.cash} onChange={e => updateForm('cash', e.target.value)} />
-                  <InputField label="Credit Card (OTC)" prefix="$" value={form.creditCard} onChange={e => updateForm('creditCard', e.target.value)} />
-                  <InputField label="Checks (OTC)" prefix="$" value={form.checksOTC} onChange={e => updateForm('checksOTC', e.target.value)} />
-                  <InputField label="Insurance Checks" prefix="$" value={form.insuranceChecks} onChange={e => updateForm('insuranceChecks', e.target.value)} />
-                  <InputField label="Care Credit" prefix="$" value={form.careCredit} onChange={e => updateForm('careCredit', e.target.value)} />
-                  <InputField label="VCC" prefix="$" value={form.vcc} onChange={e => updateForm('vcc', e.target.value)} />
-                  <InputField label="EFTs" prefix="$" value={form.efts} onChange={e => updateForm('efts', e.target.value)} />
-                </div>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm p-5 border">
-                <h2 className="font-semibold mb-4">Bank Deposit</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  <InputField label="Cash" prefix="$" value={form.depositCash} onChange={e => updateForm('depositCash', e.target.value)} />
-                  <InputField label="Credit Card" prefix="$" value={form.depositCreditCard} onChange={e => updateForm('depositCreditCard', e.target.value)} />
-                  <InputField label="Checks" prefix="$" value={form.depositChecks} onChange={e => updateForm('depositChecks', e.target.value)} />
-                  <InputField label="Insurance" prefix="$" value={form.depositInsurance} onChange={e => updateForm('depositInsurance', e.target.value)} />
-                  <InputField label="Care Credit" prefix="$" value={form.depositCareCredit} onChange={e => updateForm('depositCareCredit', e.target.value)} />
-                  <InputField label="VCC" prefix="$" value={form.depositVCC} onChange={e => updateForm('depositVCC', e.target.value)} />
-                </div>
-                <div className="mt-3"><InputField label="Notes" value={form.notes} onChange={e => updateForm('notes', e.target.value)} /></div>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm p-5 border">
-                <h2 className="font-semibold mb-4">Documents</h2>
-                <div className="space-y-4">
-                  <FileUpload label="EOD Day Sheets" files={files.eodDaySheets} onFilesChange={f => updateFiles('eodDaySheets', f)} onViewFile={setViewingFile} />
-                  <FileUpload label="EOD Bank Receipts" files={files.eodBankReceipts} onFilesChange={f => updateFiles('eodBankReceipts', f)} onViewFile={setViewingFile} />
-                  <FileUpload label="Other Files" files={files.otherFiles} onFilesChange={f => updateFiles('otherFiles', f)} onViewFile={setViewingFile} />
-                </div>
-              </div>
-              <button onClick={saveEntry} disabled={saving} className="w-full py-4 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save Entry'}
-              </button>
-            </div>
-          )}
-
-          {!isAdmin && view === 'history' && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <h2 className="font-semibold mb-4">Your Entries ({entries.length})</h2>
-              {entries.length === 0 ? <p className="text-gray-500">No entries yet</p> : (
-                <div className="space-y-2">
-                  {entries.slice(0, 30).map(e => (
-                    <div key={e.id} className="p-3 bg-gray-50 rounded-xl flex justify-between items-center">
+                  {currentModule === 'order-requests' && (
+                    <>
                       <div>
-                        <p className="font-medium">{e.date}</p>
-                        <p className="text-xs text-gray-500">{e.enteredBy}</p>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                        <input type="text" value={formData.vendor || ''} onChange={(e) => setFormData({ ...formData, vendor: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-green-600">${e.total?.toFixed(2)}</p>
-                        <p className="text-xs text-gray-500">Deposit: ${e.depositTotal?.toFixed(2)}</p>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Item Description</label>
+                        <textarea value={formData.item_description || ''} onChange={(e) => setFormData({ ...formData, item_description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={2} required />
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost</label>
+                        <input type="text" inputMode="decimal" value={formData.estimated_cost || ''} onChange={(e) => handleNumberInput(e, 'estimated_cost')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" />
+                      </div>
+                      {isAdmin && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                          <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
+                            {STATUS_OPTIONS['order-requests'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {currentModule === 'refund-requests' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
+                        <input type="text" value={formData.patient_name || ''} onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                        <input type="text" inputMode="numeric" value={formData.account_number || ''} onChange={(e) => handleNumberInput(e, 'account_number')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Refund Amount</label>
+                        <input type="text" inputMode="decimal" value={formData.refund_amount || ''} onChange={(e) => handleNumberInput(e, 'refund_amount')} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" placeholder="0.00" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Refund Type</label>
+                        <select value={formData.refund_type || ''} onChange={(e) => setFormData({ ...formData, refund_type: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required>
+                          <option value="">Select type...</option>
+                          {REFUND_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={2} />
+                      </div>
+                      {isAdmin && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                          <select value={formData.status || 'Pending'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
+                            {STATUS_OPTIONS['refund-requests'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {currentModule === 'it-requests' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Issue Title</label>
+                        <input type="text" value={formData.title || ''} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" rows={3} required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Urgency</label>
+                        <select value={formData.urgency || 'Medium'} onChange={(e) => setFormData({ ...formData, urgency: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
+                          {URGENCY_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                      {isAdmin && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select value={formData.status || 'Open'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500">
+                              {STATUS_OPTIONS['it-requests'].map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                            <input type="text" value={formData.assigned_to || ''} onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500" />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* File Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Attachments</label>
+                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-purple-300 transition-colors">
+                      <input type="file" multiple onChange={(e) => setUploadFiles([...uploadFiles, ...Array.from(e.target.files)])} className="hidden" id="file-upload" />
+                      <label htmlFor="file-upload" className="cursor-pointer">
+                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <span className="text-sm text-gray-500">Click to upload files</span>
+                      </label>
                     </div>
-                  ))}
+                    {uploadFiles.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {uploadFiles.map((file, i) => (
+                          <div key={i} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg">
+                            <span className="text-sm text-gray-600 truncate">{file.name}</span>
+                            <button type="button" onClick={() => setUploadFiles(uploadFiles.filter((_, idx) => idx !== i))} className="text-gray-400 hover:text-red-500">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button type="submit" disabled={loading} className={`flex-1 py-3 bg-gradient-to-r ${colors.gradient} text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2`}>
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : editingRecord ? 'Update' : 'Submit'}
+                    </button>
+                    {editingRecord && (
+                      <button type="button" onClick={() => { setEditingRecord(null); setFormData({}); }} className="px-4 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Records List */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    {isAdmin ? 'All Records' : 'Your Submissions'}
+                  </h2>
+                  <span className="text-sm text-gray-500">{records[currentModule]?.length || 0} records</span>
+                </div>
+
+                {loading ? (
+                  <div className="bg-white rounded-2xl shadow-sm border p-8 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
+                  </div>
+                ) : (records[currentModule]?.length || 0) === 0 ? (
+                  <div className="bg-white rounded-2xl shadow-sm border p-8 text-center">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">No records found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {records[currentModule]?.map(record => (
+                      <div key={record.id} className={`bg-white rounded-2xl shadow-sm border ${colors.border} p-4 hover:shadow-md transition-shadow`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`px-2 py-0.5 ${colors.light} ${colors.text} rounded text-xs font-medium`}>
+                                {getLocationName(record.location_id)}
+                              </span>
+                              {record.status && (
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${record.status === 'Resolved' || record.status === 'Completed' || record.status === 'Paid' || record.status === 'Closed' ? 'bg-green-100 text-green-700' : record.status === 'In Progress' || record.status === 'Approved' ? 'bg-blue-100 text-blue-700' : record.status === 'Denied' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                                  {record.status}
+                                </span>
+                              )}
+                              {record.urgency && (
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${record.urgency === 'Critical' ? 'bg-red-100 text-red-700' : record.urgency === 'High' ? 'bg-orange-100 text-orange-700' : record.urgency === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}>
+                                  {record.urgency}
+                                </span>
+                              )}
+                              {record.ticket_number && (
+                                <span className="text-xs text-gray-500">#{record.ticket_number}</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              {currentModule === 'daily-recon' && (
+                                <>
+                                  <p><strong>Date:</strong> {record.recon_date}</p>
+                                  <p><strong>Cash Can:</strong> ${parseFloat(record.cash_can || 0).toFixed(2)} | <strong>Bank:</strong> ${parseFloat(record.bank_deposit || 0).toFixed(2)}</p>
+                                </>
+                              )}
+                              {currentModule === 'billing-inquiry' && (
+                                <>
+                                  <p><strong>Patient:</strong> {record.patient_name}</p>
+                                  <p><strong>Account:</strong> {record.account_number} | <strong>Type:</strong> {record.inquiry_type}</p>
+                                </>
+                              )}
+                              {currentModule === 'bills-payment' && (
+                                <>
+                                  <p><strong>Vendor:</strong> {record.vendor_name}</p>
+                                  <p><strong>Invoice:</strong> {record.invoice_number} | <strong>Amount:</strong> ${parseFloat(record.amount || 0).toFixed(2)}</p>
+                                </>
+                              )}
+                              {currentModule === 'order-requests' && (
+                                <>
+                                  <p><strong>Vendor:</strong> {record.vendor}</p>
+                                  <p className="truncate">{record.item_description}</p>
+                                </>
+                              )}
+                              {currentModule === 'refund-requests' && (
+                                <>
+                                  <p><strong>Patient:</strong> {record.patient_name}</p>
+                                  <p><strong>Amount:</strong> ${parseFloat(record.refund_amount || 0).toFixed(2)} | <strong>Type:</strong> {record.refund_type}</p>
+                                </>
+                              )}
+                              {currentModule === 'it-requests' && (
+                                <>
+                                  <p className="font-medium text-gray-800">{record.title}</p>
+                                  <p className="truncate">{record.description}</p>
+                                </>
+                              )}
+                              <p className="text-xs text-gray-400 mt-2">
+                                {new Date(record.created_at).toLocaleString()} {record.entered_by_name && `by ${record.entered_by_name}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 ml-4">
+                            <button onClick={() => { setEditingRecord(record); setFormData(record); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDeleteRecord(record)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Floating AI Chat */}
+      <div className="fixed bottom-6 right-6 z-40">
+        {chatOpen ? (
+          <div className={`bg-white rounded-2xl shadow-2xl border overflow-hidden transition-all duration-300 ${chatExpanded ? 'w-[500px] h-[600px]' : 'w-[380px] h-[480px]'}`}>
+            <div className={`bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} px-4 py-3 flex items-center justify-between`}>
+              <div className="flex items-center gap-2 text-white">
+                <Sparkles className="w-5 h-5" />
+                <span className="font-medium">AI Assistant</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setChatExpanded(!chatExpanded)} className="p-1.5 hover:bg-white/20 rounded-lg text-white">
+                  {chatExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+                <button onClick={() => setChatOpen(false)} className="p-1.5 hover:bg-white/20 rounded-lg text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ height: chatExpanded ? '480px' : '360px' }}>
+              {chatMessages.length === 0 && (
+                <div className="text-center text-gray-400 py-8">
+                  <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>How can I help you today?</p>
                 </div>
               )}
-            </div>
-          )}
-
-          {!isAdmin && view === 'ai' && (
-            <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white">
-                <h2 className="font-semibold flex items-center gap-2"><Bot className="w-5 h-5" />AI Assistant</h2>
-              </div>
-              <div className="h-72 overflow-y-auto p-4 space-y-3">
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
-                      <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${msg.role === 'user' ? `bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} text-white` : 'bg-gray-100 text-gray-800'}`}>
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 px-4 py-3 rounded-2xl">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
-                ))}
-                {aiLoading && <div className="flex justify-start"><div className="bg-gray-100 p-3 rounded-2xl"><Loader2 className="w-5 h-5 animate-spin" /></div></div>}
-              </div>
-              <div className="p-3 border-t flex gap-2">
-                <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && askAI()} placeholder="Ask anything..." className="flex-1 p-3 border rounded-xl outline-none" />
-                <button onClick={askAI} disabled={aiLoading} className="px-4 bg-blue-600 text-white rounded-xl"><Send className="w-4 h-4" /></button>
-              </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
             </div>
-          )}
-
-          {!isAdmin && view === 'export' && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 border">
-              <p className="text-sm text-gray-500 mb-4">Export your Daily Recon data as CSV.</p>
-              <div className="mb-6">
-                <label className="text-xs text-gray-500 mb-1 block">Date Range</label>
-                <select value={exportRange} onChange={e => setExportRange(e.target.value)} className="w-full p-2.5 border-2 rounded-lg">
-                  {DATE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+            <form onSubmit={handleChat} className="p-3 border-t">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                />
+                <button type="submit" disabled={chatLoading || !chatInput.trim()} className={`p-2.5 bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} text-white rounded-xl hover:opacity-90 disabled:opacity-50`}>
+                  <Send className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={exportToCSV} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2">
-                <Download className="w-5 h-5" />Export to CSV
-              </button>
-            </div>
-          )}
-        </main>
+            </form>
+          </div>
+        ) : (
+          <button
+            onClick={() => setChatOpen(true)}
+            className={`w-14 h-14 bg-gradient-to-r ${isAdmin ? 'from-purple-600 to-indigo-600' : 'from-blue-600 to-cyan-600'} text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center`}
+          >
+            <Sparkles className="w-6 h-6" />
+          </button>
+        )}
       </div>
-
-      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
     </div>
   );
 }
