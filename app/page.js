@@ -1,9 +1,205 @@
-//**Clinic Tracking System**// - M
+/**Clinic Tracking System - DEMO VERSION**// - M
 
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
-import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Receipt, CreditCard, Package, RefreshCw, Monitor, Menu, Eye, EyeOff, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings, MessageCircle, Sparkles, AlertCircle, Maximize2, Minimize2, Headphones, Search } from 'lucide-react';
+import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Receipt, CreditCard, Package, RefreshCw, Monitor, Menu, Eye, EyeOff, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings, MessageCircle, Sparkles, AlertCircle, Maximize2, Minimize2, Search } from 'lucide-react';
+
+// ============= DEMO DATA =============
+const DEMO_LOCATIONS = [
+  { id: 'loc-1', name: 'Honolulu Main', is_active: true },
+  { id: 'loc-2', name: 'Kapolei', is_active: true },
+  { id: 'loc-3', name: 'Pearl City', is_active: true },
+  { id: 'loc-4', name: 'Kailua', is_active: true },
+  { id: 'loc-5', name: 'Aiea', is_active: true },
+  { id: 'loc-6', name: 'Waipahu', is_active: true },
+  { id: 'loc-7', name: 'Kaneohe', is_active: true },
+  { id: 'loc-8', name: 'Mililani', is_active: true },
+];
+
+const DEMO_USERS = [
+  { id: 'user-1', name: 'Admin User', username: 'admin', email: 'admin@kidshine.com', password_hash: 'admin123', role: 'super_admin', is_active: true, locations: DEMO_LOCATIONS },
+  { id: 'user-2', name: 'Finance Admin', username: 'finance', email: 'finance@kidshine.com', password_hash: 'finance123', role: 'finance_admin', is_active: true, locations: DEMO_LOCATIONS },
+  { id: 'user-3', name: 'Sarah Johnson', username: 'sarah', email: 'sarah@kidshine.com', password_hash: 'staff123', role: 'staff', is_active: true, locations: [DEMO_LOCATIONS[0], DEMO_LOCATIONS[1]] },
+  { id: 'user-4', name: 'Mike Chen', username: 'mike', email: 'mike@kidshine.com', password_hash: 'staff123', role: 'staff', is_active: true, locations: [DEMO_LOCATIONS[2]] },
+  { id: 'user-5', name: 'Emily Davis', username: 'emily', email: 'emily@kidshine.com', password_hash: 'staff123', role: 'staff', is_active: true, locations: [DEMO_LOCATIONS[3], DEMO_LOCATIONS[4]] },
+];
+
+const generateDemoData = () => {
+  const dailyRecon = [];
+  const billingInquiries = [];
+  const billsPayment = [];
+  const orderRequests = [];
+  const refundRequests = [];
+  const itRequests = [];
+
+  // Generate Daily Recon entries
+  for (let i = 0; i < 15; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const loc = DEMO_LOCATIONS[i % DEMO_LOCATIONS.length];
+    const statuses = ['Pending', 'Accounted', 'Rejected'];
+    dailyRecon.push({
+      id: `recon-${i}`,
+      recon_date: date.toISOString().split('T')[0],
+      location_id: loc.id,
+      locations: loc,
+      cash: Math.floor(Math.random() * 2000) + 500,
+      credit_card: Math.floor(Math.random() * 3000) + 1000,
+      checks_otc: Math.floor(Math.random() * 500),
+      insurance_checks: Math.floor(Math.random() * 1500),
+      care_credit: Math.floor(Math.random() * 800),
+      vcc: Math.floor(Math.random() * 300),
+      efts: Math.floor(Math.random() * 600),
+      deposit_cash: i % 3 === 0 ? Math.floor(Math.random() * 2000) : 0,
+      deposit_credit_card: i % 3 === 0 ? Math.floor(Math.random() * 3000) : 0,
+      deposit_checks: i % 3 === 0 ? Math.floor(Math.random() * 500) : 0,
+      deposit_insurance: 0,
+      deposit_care_credit: 0,
+      deposit_vcc: 0,
+      deposit_efts: 0,
+      notes: i % 2 === 0 ? 'End of day reconciliation complete' : '',
+      status: statuses[i % 3],
+      created_at: date.toISOString(),
+      created_by: DEMO_USERS[2].id,
+      creator: DEMO_USERS[2],
+      get total_collected() { return this.cash + this.credit_card + this.checks_otc + this.insurance_checks + this.care_credit + this.vcc + this.efts; },
+      get total_deposit() { return this.deposit_cash + this.deposit_credit_card + this.deposit_checks + this.deposit_insurance + this.deposit_care_credit + this.deposit_vcc + this.deposit_efts; }
+    });
+  }
+
+  // Generate Billing Inquiries
+  const patients = ['Emma Wilson', 'Liam Smith', 'Olivia Brown', 'Noah Davis', 'Ava Martinez'];
+  const inquiryTypes = ['Refund', 'Balance', 'Insurance', 'Payment Plan', 'Other'];
+  for (let i = 0; i < 10; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i * 2);
+    const loc = DEMO_LOCATIONS[i % DEMO_LOCATIONS.length];
+    billingInquiries.push({
+      id: `billing-${i}`,
+      patient_name: patients[i % patients.length],
+      chart_number: `CH${10000 + i}`,
+      parent_name: `Parent of ${patients[i % patients.length]}`,
+      date_of_request: date.toISOString().split('T')[0],
+      inquiry_type: inquiryTypes[i % inquiryTypes.length],
+      description: 'Patient inquiry regarding account balance and payment options.',
+      amount_in_question: Math.floor(Math.random() * 500) + 100,
+      best_contact_method: ['Phone', 'Email', 'Text'][i % 3],
+      best_contact_time: '10:00 AM - 2:00 PM',
+      status: ['Pending', 'In Progress', 'Resolved'][i % 3],
+      location_id: loc.id,
+      locations: loc,
+      created_at: date.toISOString(),
+      creator: DEMO_USERS[3]
+    });
+  }
+
+  // Generate Bills Payment
+  const vendors = ['Hawaiian Tel', 'HECO', 'Office Depot', 'Dental Supply Co', 'IT Services LLC'];
+  for (let i = 0; i < 8; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i * 3);
+    const loc = DEMO_LOCATIONS[i % DEMO_LOCATIONS.length];
+    billsPayment.push({
+      id: `bill-${i}`,
+      bill_status: ['Pending', 'Approved', 'Paid'][i % 3],
+      bill_date: date.toISOString().split('T')[0],
+      vendor: vendors[i % vendors.length],
+      description: `Monthly service invoice from ${vendors[i % vendors.length]}`,
+      amount: Math.floor(Math.random() * 2000) + 200,
+      due_date: new Date(date.getTime() + 30*24*60*60*1000).toISOString().split('T')[0],
+      manager_initials: 'MJ',
+      ap_reviewed: i % 2 === 0 ? 'Yes' : 'No',
+      location_id: loc.id,
+      locations: loc,
+      created_at: date.toISOString(),
+      creator: DEMO_USERS[4]
+    });
+  }
+
+  // Generate Order Requests
+  for (let i = 0; i < 6; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i * 4);
+    const loc = DEMO_LOCATIONS[i % DEMO_LOCATIONS.length];
+    orderRequests.push({
+      id: `order-${i}`,
+      date_entered: date.toISOString().split('T')[0],
+      vendor: vendors[i % vendors.length],
+      invoice_number: `INV-${20240000 + i}`,
+      invoice_date: date.toISOString().split('T')[0],
+      due_date: new Date(date.getTime() + 45*24*60*60*1000).toISOString().split('T')[0],
+      amount: Math.floor(Math.random() * 3000) + 500,
+      entered_by: DEMO_USERS[3].name,
+      notes: 'Regular supply order',
+      location_id: loc.id,
+      locations: loc,
+      created_at: date.toISOString(),
+      creator: DEMO_USERS[3]
+    });
+  }
+
+  // Generate Refund Requests
+  for (let i = 0; i < 5; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i * 5);
+    const loc = DEMO_LOCATIONS[i % DEMO_LOCATIONS.length];
+    refundRequests.push({
+      id: `refund-${i}`,
+      patient_name: patients[i % patients.length],
+      chart_number: `CH${10000 + i}`,
+      parent_name: `Parent of ${patients[i % patients.length]}`,
+      rp_address: '123 Main St, Honolulu, HI 96801',
+      date_of_request: date.toISOString().split('T')[0],
+      type: ['Refund', 'Credit', 'Adjustment'][i % 3],
+      description: 'Overpayment refund request',
+      amount_requested: Math.floor(Math.random() * 300) + 50,
+      best_contact_method: ['Phone', 'Email', 'Text'][i % 3],
+      eassist_audited: i % 2 === 0,
+      status: ['Pending', 'Approved', 'Completed', 'Denied'][i % 4],
+      location_id: loc.id,
+      locations: loc,
+      created_at: date.toISOString(),
+      creator: DEMO_USERS[4]
+    });
+  }
+
+  // Generate IT Requests
+  const devices = ['Computer', 'Printer', 'Network', 'Phone System', 'Software'];
+  const issues = ['Not working', 'Slow performance', 'Error message', 'Needs update', 'Access issue'];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i * 2);
+    const loc = DEMO_LOCATIONS[i % DEMO_LOCATIONS.length];
+    itRequests.push({
+      id: `it-${i}`,
+      ticket_number: 1000 + i,
+      date_reported: date.toISOString().split('T')[0],
+      urgency: ['Low', 'Medium', 'High', 'Critical'][i % 4],
+      requester_name: DEMO_USERS[(i % 3) + 2].name,
+      device_system: devices[i % devices.length],
+      description_of_issue: `${devices[i % devices.length]} ${issues[i % issues.length]}`,
+      best_contact_method: ['Phone', 'Email', 'Text'][i % 3],
+      best_contact_time: '9:00 AM - 5:00 PM',
+      status: ['Open', 'In Progress', 'Resolved', 'Closed'][i % 4],
+      resolution_notes: i % 4 >= 2 ? 'Issue resolved successfully' : '',
+      location_id: loc.id,
+      locations: loc,
+      created_at: date.toISOString(),
+      creator: DEMO_USERS[(i % 3) + 2]
+    });
+  }
+
+  return {
+    'daily-recon': dailyRecon,
+    'billing-inquiry': billingInquiries,
+    'bills-payment': billsPayment,
+    'order-requests': orderRequests,
+    'refund-requests': refundRequests,
+    'it-requests': itRequests
+  };
+};
+
+// ============= CONSTANTS =============
 const MODULES = [
   { id: 'daily-recon', name: 'Daily Recon', icon: DollarSign, color: 'emerald', table: 'daily_recon' },
   { id: 'billing-inquiry', name: 'Billing Inquiry', icon: Receipt, color: 'blue', table: 'billing_inquiries' },
@@ -47,20 +243,14 @@ function canEditRecord(createdAt) {
   return hawaiiNow <= friday;
 }
 
+// ============= COMPONENTS =============
 function PasswordField({ label, value, onChange, placeholder = '', disabled }) {
   const [show, setShow] = useState(false);
   return (
     <div className="flex flex-col">
       <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
       <div className={`flex items-center border-2 border-gray-200 rounded-xl bg-white transition-all hover:border-gray-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 ${disabled ? 'bg-gray-100' : ''}`}>
-        <input
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          className="w-full p-2.5 rounded-xl outline-none bg-transparent disabled:cursor-not-allowed"
-          placeholder={placeholder}
-        />
+        <input type={show ? 'text' : 'password'} value={value} onChange={onChange} disabled={disabled} className="w-full p-2.5 rounded-xl outline-none bg-transparent disabled:cursor-not-allowed" placeholder={placeholder} />
         <button type="button" onClick={() => setShow(!show)} className="px-3 text-gray-400 hover:text-gray-600">
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </button>
@@ -89,32 +279,18 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', p
       </div>
     );
   }
-
   const handleNumberInput = (e) => {
     const val = e.target.value;
     if (isNumber || prefix === '$') {
-      if (val === '' || /^\d*\.?\d*$/.test(val)) {
-        onChange(e);
-      }
-    } else {
-      onChange(e);
-    }
+      if (val === '' || /^\d*\.?\d*$/.test(val)) onChange(e);
+    } else onChange(e);
   };
-
   return (
     <div className="flex flex-col">
       <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
       <div className={`flex items-center border-2 border-gray-200 rounded-xl bg-white transition-all hover:border-gray-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 ${disabled ? 'bg-gray-100' : ''}`}>
         {prefix && <span className="pl-3 text-gray-400 font-medium">{prefix}</span>}
-        <input
-          type={type}
-          value={value}
-          onChange={handleNumberInput}
-          disabled={disabled}
-          className="w-full p-2.5 rounded-xl outline-none bg-transparent disabled:cursor-not-allowed"
-          placeholder={placeholder}
-          inputMode={(isNumber || prefix === '$') ? 'decimal' : undefined}
-        />
+        <input type={type} value={value} onChange={handleNumberInput} disabled={disabled} className="w-full p-2.5 rounded-xl outline-none bg-transparent disabled:cursor-not-allowed" placeholder={placeholder} inputMode={(isNumber || prefix === '$') ? 'decimal' : undefined} />
       </div>
     </div>
   );
@@ -122,25 +298,15 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', p
 
 function FileUpload({ label, files, onFilesChange, onViewFile, disabled }) {
   const handleFileChange = async (e) => {
-    const newFiles = Array.from(e.target.files).map(f => ({
-      file: f,
-      name: f.name,
-      size: f.size,
-      type: f.type,
-      url: URL.createObjectURL(f),
-      isNew: true
-    }));
+    const newFiles = Array.from(e.target.files).map(f => ({ file: f, name: f.name, size: f.size, type: f.type, url: URL.createObjectURL(f), isNew: true }));
     onFilesChange([...files, ...newFiles]);
   };
-  
   return (
     <div className="flex flex-col">
       <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
       <div className={`border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-slate-50 hover:border-blue-300 hover:from-blue-50 hover:to-indigo-50 transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
         <label className={`flex flex-col items-center justify-center gap-2 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} text-gray-500 hover:text-blue-600`}>
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <Upload className="w-5 h-5 text-blue-600" />
-          </div>
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center"><Upload className="w-5 h-5 text-blue-600" /></div>
           <span className="text-sm font-medium">Click to upload files</span>
           <input type="file" multiple onChange={handleFileChange} disabled={disabled} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
         </label>
@@ -149,9 +315,7 @@ function FileUpload({ label, files, onFilesChange, onViewFile, disabled }) {
             {files.map((file, i) => (
               <div key={i} className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-2 truncate flex-1">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <File className="w-4 h-4 text-blue-600" />
-                  </div>
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0"><File className="w-4 h-4 text-blue-600" /></div>
                   <span className="truncate text-sm font-medium text-gray-700">{file.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -180,179 +344,11 @@ function FileViewer({ file, onClose }) {
         <div className="p-6">
           {isImage ? <img src={file.url} alt={file.name} className="max-w-full rounded-xl mx-auto shadow-lg" /> : (
             <div className="text-center py-12 text-gray-500">
-              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <File className="w-10 h-10 text-gray-400" />
-              </div>
+              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><File className="w-10 h-10 text-gray-400" /></div>
               <p className="mb-4">Preview not available</p>
               <a href={file.url} download={file.name} className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-shadow">Download File</a>
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EntryPreview({ entry, module, onClose, colors, onViewDocument }) {
-  if (!entry) return null;
-  
-  const formatDate = (date) => date ? new Date(date).toLocaleDateString() : '-';
-  const formatCurrency = (val) => val ? `$${Number(val).toFixed(2)}` : '$0.00';
-  const formatDateTime = (date) => date ? new Date(date).toLocaleString() : '-';
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-2xl max-h-[90vh] w-full overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className={`flex justify-between items-center p-4 border-b sticky top-0 ${colors?.bg || 'bg-gray-50'}`}>
-          <div>
-            <h3 className="font-semibold text-gray-800">Entry Details</h3>
-            <p className="text-sm text-gray-500">{module?.name}</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
-        </div>
-        
-        <div className="p-6 space-y-4">
-          {/* Status and Meta */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <StatusBadge status={entry.status || 'Pending'} />
-            <span className="text-sm text-gray-500">Created: {formatDateTime(entry.created_at)}</span>
-            {entry.updated_at !== entry.created_at && (
-              <span className="text-sm text-gray-500">Updated: {formatDateTime(entry.updated_at)}</span>
-            )}
-          </div>
-          
-          {entry.locations?.name && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
-              <Building2 className="w-4 h-4" /> {entry.locations.name}
-            </div>
-          )}
-
-          {/* Daily Recon */}
-          {module?.id === 'daily-recon' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                <h4 className="col-span-2 font-semibold text-emerald-800 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Cash Can Entries</h4>
-                <div><span className="text-gray-600 text-sm">Date:</span> <span className="font-medium">{entry.recon_date}</span></div>
-                <div><span className="text-gray-600 text-sm">Cash:</span> <span className="font-medium">{formatCurrency(entry.cash)}</span></div>
-                <div><span className="text-gray-600 text-sm">Credit Card:</span> <span className="font-medium">{formatCurrency(entry.credit_card)}</span></div>
-                <div><span className="text-gray-600 text-sm">Checks OTC:</span> <span className="font-medium">{formatCurrency(entry.checks_otc)}</span></div>
-                <div><span className="text-gray-600 text-sm">Insurance:</span> <span className="font-medium">{formatCurrency(entry.insurance_checks)}</span></div>
-                <div><span className="text-gray-600 text-sm">Care Credit:</span> <span className="font-medium">{formatCurrency(entry.care_credit)}</span></div>
-                <div><span className="text-gray-600 text-sm">VCC:</span> <span className="font-medium">{formatCurrency(entry.vcc)}</span></div>
-                <div><span className="text-gray-600 text-sm">EFTs:</span> <span className="font-medium">{formatCurrency(entry.efts)}</span></div>
-                <div className="col-span-2 pt-2 border-t border-emerald-200">
-                  <span className="text-gray-600 text-sm">Total Collected:</span> <span className="font-bold text-emerald-700 text-lg">{formatCurrency(entry.total_collected)}</span>
-                </div>
-              </div>
-              {(entry.deposit_cash > 0 || entry.status === 'Accounted') && (
-                <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <h4 className="col-span-2 font-semibold text-blue-800 flex items-center gap-2"><Building2 className="w-4 h-4" /> Bank Deposit</h4>
-                  <div><span className="text-gray-600 text-sm">Cash:</span> <span className="font-medium">{formatCurrency(entry.deposit_cash)}</span></div>
-                  <div><span className="text-gray-600 text-sm">Credit Card:</span> <span className="font-medium">{formatCurrency(entry.deposit_credit_card)}</span></div>
-                  <div><span className="text-gray-600 text-sm">Checks:</span> <span className="font-medium">{formatCurrency(entry.deposit_checks)}</span></div>
-                  <div><span className="text-gray-600 text-sm">Insurance:</span> <span className="font-medium">{formatCurrency(entry.deposit_insurance)}</span></div>
-                  <div><span className="text-gray-600 text-sm">Care Credit:</span> <span className="font-medium">{formatCurrency(entry.deposit_care_credit)}</span></div>
-                  <div><span className="text-gray-600 text-sm">VCC:</span> <span className="font-medium">{formatCurrency(entry.deposit_vcc)}</span></div>
-                  <div><span className="text-gray-600 text-sm">EFTs:</span> <span className="font-medium">{formatCurrency(entry.deposit_efts)}</span></div>
-                  <div className="col-span-2 pt-2 border-t border-blue-200">
-                    <span className="text-gray-600 text-sm">Total Deposit:</span> <span className="font-bold text-blue-700 text-lg">{formatCurrency(entry.total_deposit)}</span>
-                  </div>
-                </div>
-              )}
-              {entry.notes && <div className="p-4 bg-gray-50 rounded-xl"><span className="text-gray-600 text-sm block mb-1">Notes:</span><p className="text-gray-800">{entry.notes}</p></div>}
-            </div>
-          )}
-
-          {/* Billing Inquiry */}
-          {module?.id === 'billing-inquiry' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div><span className="text-gray-600 text-sm block">Patient Name</span><span className="font-medium">{entry.patient_name || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Chart Number</span><span className="font-medium">{entry.chart_number || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Parent Name</span><span className="font-medium">{entry.parent_name || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Date of Request</span><span className="font-medium">{formatDate(entry.date_of_request)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Inquiry Type</span><span className="font-medium">{entry.inquiry_type || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Amount in Question</span><span className="font-medium text-emerald-600">{formatCurrency(entry.amount_in_question)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Contact Method</span><span className="font-medium">{entry.best_contact_method || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Best Time to Contact</span><span className="font-medium">{entry.best_contact_time || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Billing Team Reviewed</span><span className="font-medium">{entry.billing_team_reviewed || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Date Reviewed</span><span className="font-medium">{formatDate(entry.date_reviewed)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Result</span><span className="font-medium">{entry.result || '-'}</span></div>
-              <div className="col-span-2"><span className="text-gray-600 text-sm block">Description</span><p className="font-medium bg-gray-50 p-3 rounded-lg mt-1">{entry.description || '-'}</p></div>
-            </div>
-          )}
-
-          {/* Bills Payment */}
-          {module?.id === 'bills-payment' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div><span className="text-gray-600 text-sm block">Bill Date</span><span className="font-medium">{formatDate(entry.bill_date)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Vendor</span><span className="font-medium">{entry.vendor || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Amount</span><span className="font-medium text-emerald-600">{formatCurrency(entry.amount)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Due Date</span><span className="font-medium">{formatDate(entry.due_date)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Bill Status</span><span className="font-medium">{entry.bill_status || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Manager Initials</span><span className="font-medium">{entry.manager_initials || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">AP Reviewed</span><span className="font-medium">{entry.ap_reviewed || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Date Reviewed</span><span className="font-medium">{formatDate(entry.date_reviewed)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Paid</span><span className="font-medium">{entry.paid || '-'}</span></div>
-              <div className="col-span-2"><span className="text-gray-600 text-sm block">Description</span><p className="font-medium bg-gray-50 p-3 rounded-lg mt-1">{entry.description || '-'}</p></div>
-            </div>
-          )}
-
-          {/* Order Requests */}
-          {module?.id === 'order-requests' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div><span className="text-gray-600 text-sm block">Date Entered</span><span className="font-medium">{formatDate(entry.date_entered)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Vendor</span><span className="font-medium">{entry.vendor || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Invoice Number</span><span className="font-medium">{entry.invoice_number || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Invoice Date</span><span className="font-medium">{formatDate(entry.invoice_date)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Due Date</span><span className="font-medium">{formatDate(entry.due_date)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Amount</span><span className="font-medium text-emerald-600">{formatCurrency(entry.amount)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Entered By</span><span className="font-medium">{entry.entered_by || '-'}</span></div>
-              <div className="col-span-2"><span className="text-gray-600 text-sm block">Notes</span><p className="font-medium bg-gray-50 p-3 rounded-lg mt-1">{entry.notes || '-'}</p></div>
-            </div>
-          )}
-
-          {/* Refund Requests */}
-          {module?.id === 'refund-requests' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div><span className="text-gray-600 text-sm block">Patient Name</span><span className="font-medium">{entry.patient_name || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Chart Number</span><span className="font-medium">{entry.chart_number || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Parent Name</span><span className="font-medium">{entry.parent_name || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">RP Address</span><span className="font-medium">{entry.rp_address || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Date of Request</span><span className="font-medium">{formatDate(entry.date_of_request)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Type</span><span className="font-medium">{entry.type || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Amount Requested</span><span className="font-medium text-emerald-600">{formatCurrency(entry.amount_requested)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Contact Method</span><span className="font-medium">{entry.best_contact_method || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">eAssist Audited</span><span className="font-medium">{entry.eassist_audited === true ? 'Yes' : entry.eassist_audited === false ? 'No' : '-'}</span></div>
-              <div className="col-span-2"><span className="text-gray-600 text-sm block">Description</span><p className="font-medium bg-gray-50 p-3 rounded-lg mt-1">{entry.description || '-'}</p></div>
-            </div>
-          )}
-
-          {/* IT Requests */}
-          {module?.id === 'it-requests' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div><span className="text-gray-600 text-sm block">Ticket Number</span><span className="font-medium text-cyan-600">IT-{entry.ticket_number}</span></div>
-              <div><span className="text-gray-600 text-sm block">Date Reported</span><span className="font-medium">{formatDate(entry.date_reported)}</span></div>
-              <div><span className="text-gray-600 text-sm block">Urgency</span><span className={`font-medium ${entry.urgency === 'Critical' ? 'text-red-600' : entry.urgency === 'High' ? 'text-orange-600' : ''}`}>{entry.urgency || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Requester Name</span><span className="font-medium">{entry.requester_name || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Device / System</span><span className="font-medium">{entry.device_system || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Contact Method</span><span className="font-medium">{entry.best_contact_method || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Best Contact Time</span><span className="font-medium">{entry.best_contact_time || '-'}</span></div>
-              <div><span className="text-gray-600 text-sm block">Assigned To</span><span className="font-medium">{entry.assigned_to || '-'}</span></div>
-              <div className="col-span-2"><span className="text-gray-600 text-sm block">Description of Issue</span><p className="font-medium bg-gray-50 p-3 rounded-lg mt-1">{entry.description_of_issue || '-'}</p></div>
-              {entry.resolution_notes && <div className="col-span-2"><span className="text-gray-600 text-sm block">Resolution Notes</span><p className="font-medium bg-emerald-50 p-3 rounded-lg mt-1 text-emerald-800">{entry.resolution_notes}</p></div>}
-              {entry.resolved_at && <div><span className="text-gray-600 text-sm block">Resolved At</span><span className="font-medium">{formatDateTime(entry.resolved_at)}</span></div>}
-            </div>
-          )}
-
-          {/* Creator/Updater Info */}
-          <div className="pt-4 border-t border-gray-200 flex flex-wrap gap-4 text-sm text-gray-500">
-            {entry.creator?.name && <span>Created by: <span className="font-medium text-gray-700">{entry.creator.name}</span></span>}
-            {entry.updater?.name && entry.updater.name !== entry.creator?.name && <span>Updated by: <span className="font-medium text-gray-700">{entry.updater.name}</span></span>}
-          </div>
-        </div>
-
-        <div className="p-4 border-t bg-gray-50 sticky bottom-0">
-          <button onClick={onClose} className="w-full py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-medium transition-all">Close</button>
         </div>
       </div>
     </div>
@@ -376,105 +372,95 @@ function StatusBadge({ status }) {
   return <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${colors[status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>{status || 'Pending'}</span>;
 }
 
-function FloatingChat({ messages, input, setInput, onSend, loading, userRole }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const messagesEndRef = useRef(null);
-  
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const isAdmin = userRole === 'super_admin' || userRole === 'finance_admin';
-
-  const chatSize = isExpanded 
-    ? 'w-[600px] h-[700px]' 
-    : 'w-96 h-[500px]';
+function EntryPreview({ entry, module, onClose, colors }) {
+  if (!entry) return null;
+  const formatCurrency = (val) => val ? `$${Number(val).toFixed(2)}` : '$0.00';
+  const formatDate = (date) => date ? new Date(date).toLocaleDateString() : '-';
+  const formatDateTime = (date) => date ? new Date(date).toLocaleString() : '-';
 
   return (
-    <>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 hover:shadow-xl ${isOpen ? 'bg-gray-700' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`}
-      >
-        {isOpen ? <X className="w-6 h-6 text-white" /> : (
-          <div className="relative">
-            <MessageCircle className="w-6 h-6 text-white" />
-            <Sparkles className="w-3 h-3 text-yellow-300 absolute -top-1 -right-1" />
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-2xl max-h-[90vh] w-full overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className={`flex justify-between items-center p-4 border-b sticky top-0 ${colors?.bg || 'bg-gray-50'}`}>
+          <div><h3 className="font-semibold text-gray-800">Entry Details</h3><p className="text-sm text-gray-500">{module?.name}</p></div>
+          <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <StatusBadge status={entry.status || 'Pending'} />
+            <span className="text-sm text-gray-500">Created: {formatDateTime(entry.created_at)}</span>
           </div>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className={`fixed bottom-24 right-6 z-50 ${chatSize} bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 transition-all duration-300`}>
-          <div className={`p-4 text-white ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">AI Assistant</h3>
-                  <p className="text-xs text-white/80">Powered by Claude</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                title={isExpanded ? 'Compact view' : 'Expanded view'}
-              >
-                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
+          {entry.locations?.name && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
+              <Building2 className="w-4 h-4" /> {entry.locations.name}
             </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-md' : 'bg-white border border-gray-200 shadow-sm rounded-bl-md'}`}>
-                  <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+          )}
+          {module?.id === 'daily-recon' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                <h4 className="col-span-2 font-semibold text-emerald-800 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Cash Can Entries</h4>
+                <div><span className="text-gray-600 text-sm">Date:</span> <span className="font-medium">{entry.recon_date}</span></div>
+                <div><span className="text-gray-600 text-sm">Cash:</span> <span className="font-medium">{formatCurrency(entry.cash)}</span></div>
+                <div><span className="text-gray-600 text-sm">Credit Card:</span> <span className="font-medium">{formatCurrency(entry.credit_card)}</span></div>
+                <div><span className="text-gray-600 text-sm">Checks OTC:</span> <span className="font-medium">{formatCurrency(entry.checks_otc)}</span></div>
+                <div><span className="text-gray-600 text-sm">Insurance:</span> <span className="font-medium">{formatCurrency(entry.insurance_checks)}</span></div>
+                <div><span className="text-gray-600 text-sm">Care Credit:</span> <span className="font-medium">{formatCurrency(entry.care_credit)}</span></div>
+                <div><span className="text-gray-600 text-sm">VCC:</span> <span className="font-medium">{formatCurrency(entry.vcc)}</span></div>
+                <div><span className="text-gray-600 text-sm">EFTs:</span> <span className="font-medium">{formatCurrency(entry.efts)}</span></div>
+                <div className="col-span-2 pt-2 border-t border-emerald-200">
+                  <span className="text-gray-600 text-sm">Total Collected:</span> <span className="font-bold text-emerald-700 text-lg">{formatCurrency(entry.total_collected)}</span>
                 </div>
               </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 p-3 rounded-2xl rounded-bl-md shadow-sm">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+              {(entry.deposit_cash > 0 || entry.status === 'Accounted') && (
+                <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <h4 className="col-span-2 font-semibold text-blue-800 flex items-center gap-2"><Building2 className="w-4 h-4" /> Bank Deposit</h4>
+                  <div><span className="text-gray-600 text-sm">Cash:</span> <span className="font-medium">{formatCurrency(entry.deposit_cash)}</span></div>
+                  <div><span className="text-gray-600 text-sm">Credit Card:</span> <span className="font-medium">{formatCurrency(entry.deposit_credit_card)}</span></div>
+                  <div><span className="text-gray-600 text-sm">Checks:</span> <span className="font-medium">{formatCurrency(entry.deposit_checks)}</span></div>
+                  <div className="col-span-2 pt-2 border-t border-blue-200">
+                    <span className="text-gray-600 text-sm">Total Deposit:</span> <span className="font-bold text-blue-700 text-lg">{formatCurrency(entry.total_deposit)}</span>
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="p-3 border-t bg-white">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && onSend()}
-                placeholder="Ask me anything..."
-                className="flex-1 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
-              <button
-                onClick={onSend}
-                disabled={loading}
-                className="px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+              )}
             </div>
-          </div>
+          )}
+          {module?.id === 'billing-inquiry' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div><span className="text-gray-600 text-sm block">Patient Name</span><span className="font-medium">{entry.patient_name || '-'}</span></div>
+              <div><span className="text-gray-600 text-sm block">Chart Number</span><span className="font-medium">{entry.chart_number || '-'}</span></div>
+              <div><span className="text-gray-600 text-sm block">Inquiry Type</span><span className="font-medium">{entry.inquiry_type || '-'}</span></div>
+              <div><span className="text-gray-600 text-sm block">Amount</span><span className="font-medium text-emerald-600">{formatCurrency(entry.amount_in_question)}</span></div>
+              <div className="col-span-2"><span className="text-gray-600 text-sm block">Description</span><p className="font-medium bg-gray-50 p-3 rounded-lg mt-1">{entry.description || '-'}</p></div>
+            </div>
+          )}
+          {module?.id === 'bills-payment' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div><span className="text-gray-600 text-sm block">Vendor</span><span className="font-medium">{entry.vendor || '-'}</span></div>
+              <div><span className="text-gray-600 text-sm block">Amount</span><span className="font-medium text-emerald-600">{formatCurrency(entry.amount)}</span></div>
+              <div><span className="text-gray-600 text-sm block">Due Date</span><span className="font-medium">{formatDate(entry.due_date)}</span></div>
+              <div><span className="text-gray-600 text-sm block">Bill Status</span><span className="font-medium">{entry.bill_status || '-'}</span></div>
+            </div>
+          )}
+          {module?.id === 'it-requests' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div><span className="text-gray-600 text-sm block">Ticket Number</span><span className="font-medium text-cyan-600">IT-{entry.ticket_number}</span></div>
+              <div><span className="text-gray-600 text-sm block">Urgency</span><span className={`font-medium ${entry.urgency === 'Critical' ? 'text-red-600' : entry.urgency === 'High' ? 'text-orange-600' : ''}`}>{entry.urgency || '-'}</span></div>
+              <div><span className="text-gray-600 text-sm block">Device/System</span><span className="font-medium">{entry.device_system || '-'}</span></div>
+              <div><span className="text-gray-600 text-sm block">Requester</span><span className="font-medium">{entry.requester_name || '-'}</span></div>
+              <div className="col-span-2"><span className="text-gray-600 text-sm block">Description</span><p className="font-medium bg-gray-50 p-3 rounded-lg mt-1">{entry.description_of_issue || '-'}</p></div>
+            </div>
+          )}
+          {entry.creator?.name && <div className="pt-4 border-t border-gray-200 text-sm text-gray-500">Created by: <span className="font-medium text-gray-700">{entry.creator.name}</span></div>}
         </div>
-      )}
-    </>
+        <div className="p-4 border-t bg-gray-50 sticky bottom-0">
+          <button onClick={onClose} className="w-full py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-medium transition-all">Close</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
+// ============= MAIN COMPONENT =============
 export default function ClinicSystem() {
   const [currentUser, setCurrentUser] = useState(null);
   const [userLocations, setUserLocations] = useState([]);
@@ -483,15 +469,13 @@ export default function ClinicSystem() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
-const [rememberMe, setRememberMe] = useState(false);
-const [lastLogin, setLastLogin] = useState(null);
-const [loginHistory, setLoginHistory] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [locations, setLocations] = useState(DEMO_LOCATIONS);
+  const [users, setUsers] = useState(DEMO_USERS);
   const [activeModule, setActiveModule] = useState('daily-recon');
   const [view, setView] = useState('entry');
   const [adminView, setAdminView] = useState('records');
-  const [moduleData, setModuleData] = useState({});
+  const [moduleData, setModuleData] = useState(generateDemoData());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -500,74 +484,45 @@ const [loginHistory, setLoginHistory] = useState([]);
   const [adminLocation, setAdminLocation] = useState('all');
   const [editingStatus, setEditingStatus] = useState(null);
   const [editingRecon, setEditingRecon] = useState(null);
-const [reconForm, setReconForm] = useState({});
+  const [reconForm, setReconForm] = useState({});
   const [editingEntry, setEditingEntry] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [docSearch, setDocSearch] = useState('');
   const [recordSearch, setRecordSearch] = useState('');
-const [sortOrder, setSortOrder] = useState('desc');
-const [recordsPerPage, setRecordsPerPage] = useState(20);
-const [currentPage, setCurrentPage] = useState(1);
-const [nameForm, setNameForm] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [recordsPerPage, setRecordsPerPage] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [nameForm, setNameForm] = useState('');
   const [editingStaffEntry, setEditingStaffEntry] = useState(null);
-const [staffEditForm, setStaffEditForm] = useState({});
+  const [staffEditForm, setStaffEditForm] = useState({});
   const [viewingUserSessions, setViewingUserSessions] = useState(null);
   const [userSearch, setUserSearch] = useState('');
   const [viewingEntry, setViewingEntry] = useState(null);
-const [userSessionsData, setUserSessionsData] = useState([]);
-const [loadingUserSessions, setLoadingUserSessions] = useState(false);
   const [staffRecordSearch, setStaffRecordSearch] = useState('');
-const [staffSortOrder, setStaffSortOrder] = useState('desc');
-const [staffRecordsPerPage, setStaffRecordsPerPage] = useState(20);
-const [staffCurrentPage, setStaffCurrentPage] = useState(1);
-
+  const [staffSortOrder, setStaffSortOrder] = useState('desc');
+  const [staffRecordsPerPage, setStaffRecordsPerPage] = useState(20);
+  const [staffCurrentPage, setStaffCurrentPage] = useState(1);
   const [showAddUser, setShowAddUser] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [newUser, setNewUser] = useState({ name: '', username: '', email: '', password: '', role: 'staff', locations: [] });
-
   const [pwdForm, setPwdForm] = useState({ current: '', new: '', confirm: '' });
-
   const [exportModule, setExportModule] = useState('daily-recon');
   const [exportLocation, setExportLocation] = useState('all');
   const [exportRange, setExportRange] = useState('This Month');
 
-  const [chatMessages, setChatMessages] = useState([{
-    role: 'assistant',
-    content: "👋 Hi! I'm your AI assistant. I can help with:\n\n• Data summaries & reports\n• Weekly comparisons\n• Location analytics\n• IT request status\n\nWhat would you like to know?"
-  }]);
-  const [chatInput, setChatInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-
-  const [entryDocuments, setEntryDocuments] = useState({});
-
-  const loadEntryDocuments = async (recordType, recordId) => {
-    const key = `${recordType}-${recordId}`;
-    if (entryDocuments[key]) return; // Already loaded
-    
-    const { data } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('record_type', recordType)
-      .eq('record_id', recordId);
-    
-    if (data) {
-      setEntryDocuments(prev => ({ ...prev, [key]: data }));
-    }
-  };
-
   const today = new Date().toISOString().split('T')[0];
 
   const [forms, setForms] = useState({
-    'daily-recon': { recon_date: today, cash: '', credit_card: '', checks_otc: '', insurance_checks: '', care_credit: '', vcc: '', efts: '', deposit_cash: '', deposit_credit_card: '', deposit_checks: '', deposit_insurance: '', deposit_care_credit: '', deposit_vcc: '', deposit_efts: '', notes: '', entered_by: '' },
-    'billing-inquiry': { patient_name: '', chart_number: '', parent_name: '', date_of_request: today, inquiry_type: '', description: '', amount_in_question: '', best_contact_method: '', best_contact_time: '', billing_team_reviewed: '', date_reviewed: '', status: 'Pending', result: '' },
-    'bills-payment': { bill_status: 'Pending', bill_date: today, vendor: '', description: '', amount: '', due_date: '', manager_initials: '', ap_reviewed: '', date_reviewed: '', paid: '' },
-    'order-requests': { date_entered: today, vendor: '', invoice_number: '', invoice_date: '', due_date: '', amount: '', entered_by: '', notes: '' },
-    'refund-requests': { patient_name: '', chart_number: '', parent_name: '', rp_address: '', date_of_request: today, type: '', description: '', amount_requested: '', best_contact_method: '', eassist_audited: '', status: 'Pending' },
-   'it-requests': { date_reported: today, urgency: '', requester_name: '', device_system: '', description_of_issue: '', best_contact_method: '', best_contact_time: '', assigned_to: '', status: 'Open', resolution_notes: '', completed_by: '' }
+    'daily-recon': { recon_date: today, cash: '', credit_card: '', checks_otc: '', insurance_checks: '', care_credit: '', vcc: '', efts: '', notes: '' },
+    'billing-inquiry': { patient_name: '', chart_number: '', parent_name: '', date_of_request: today, inquiry_type: '', description: '', amount_in_question: '', best_contact_method: '', best_contact_time: '', status: 'Pending' },
+    'bills-payment': { bill_status: 'Pending', bill_date: today, vendor: '', description: '', amount: '', due_date: '', manager_initials: '' },
+    'order-requests': { date_entered: today, vendor: '', invoice_number: '', invoice_date: '', due_date: '', amount: '', notes: '' },
+    'refund-requests': { patient_name: '', chart_number: '', parent_name: '', rp_address: '', date_of_request: today, type: '', description: '', amount_requested: '', best_contact_method: '', status: 'Pending' },
+    'it-requests': { date_reported: today, urgency: '', requester_name: '', device_system: '', description_of_issue: '', best_contact_method: '', best_contact_time: '', status: 'Open' }
   });
 
   const [files, setFiles] = useState({
-  'daily-recon': { documents: [] },
+    'daily-recon': { documents: [] },
     'billing-inquiry': { documentation: [] },
     'bills-payment': { documentation: [] },
     'order-requests': { orderInvoices: [] },
@@ -575,100 +530,10 @@ const [staffCurrentPage, setStaffCurrentPage] = useState(1);
     'it-requests': { documentation: [] }
   });
 
-useEffect(() => {
-  loadLocations();
-  
-  // Check for saved session on mount
-  const savedSession = localStorage.getItem('cms_session') || sessionStorage.getItem('cms_session');
-  if (savedSession) {
-    try {
-      const sessionData = JSON.parse(savedSession);
-      
-      // Check if session has expired
-      if (sessionData.expiresAt && new Date(sessionData.expiresAt) < new Date()) {
-        // Session expired - clear it
-        localStorage.removeItem('cms_session');
-        sessionStorage.removeItem('cms_session');
-        return;
-      }
-      
-      // Verify session is still valid
-      if (sessionData.user && sessionData.user.id) {
-        setCurrentUser(sessionData.user);
-        setUserLocations(sessionData.userLocations || []);
-        if (sessionData.selectedLocation) {
-          setSelectedLocation(sessionData.selectedLocation);
-        }
-        setLastLogin(sessionData.lastLogin);
-        // Load users if admin
-        if (sessionData.user.role === 'super_admin' || sessionData.user.role === 'finance_admin') {
-          loadUsers();
-        }
-      }
-    } catch (e) {
-      console.error('Failed to restore session:', e);
-      localStorage.removeItem('cms_session');
-      sessionStorage.removeItem('cms_session');
-    }
-  }
-  
-  // Multi-tab sync: Listen for storage changes
-  const handleStorageChange = (e) => {
-    if (e.key === 'cms_session') {
-      if (e.newValue === null) {
-        // Session was cleared in another tab - log out here too
-        setCurrentUser(null);
-        setUserLocations([]);
-        setSelectedLocation(null);
-        setLoginEmail('');
-        setLoginPassword('');
-        setView('entry');
-        setAdminView('records');
-        setModuleData({});
-        setChatMessages([{ role: 'assistant', content: "👋 Hi! I'm your AI assistant." }]);
-      } else if (e.newValue) {
-        // Session was created/updated in another tab - sync here
-        try {
-          const sessionData = JSON.parse(e.newValue);
-          if (sessionData.user) {
-            setCurrentUser(sessionData.user);
-            setUserLocations(sessionData.userLocations || []);
-            if (sessionData.selectedLocation) {
-              setSelectedLocation(sessionData.selectedLocation);
-            }
-            setLastLogin(sessionData.lastLogin);
-            if (sessionData.user.role === 'super_admin' || sessionData.user.role === 'finance_admin') {
-              loadUsers();
-            }
-          }
-        } catch (err) {
-          console.error('Failed to sync session:', err);
-        }
-      }
-    }
-    // Handle explicit logout broadcast
-    if (e.key === 'cms_logout') {
-      setCurrentUser(null);
-      setUserLocations([]);
-      setSelectedLocation(null);
-      setModuleData({});
-      setChatMessages([{ role: 'assistant', content: "👋 Hi! I'm your AI assistant." }]);
-    }
-  };
-  
-  window.addEventListener('storage', handleStorageChange);
-  return () => window.removeEventListener('storage', handleStorageChange);
-}, []);
-useEffect(() => { if (currentUser) setNameForm(currentUser.name || ''); }, [currentUser]);
-  useEffect(() => {
-    if (currentUser && (selectedLocation || isAdmin)) {
-      loadModuleData(activeModule);
-    }
-  }, [currentUser, selectedLocation, activeModule, adminLocation]);
-
-useEffect(() => { setCurrentPage(1); setRecordSearch(''); }, [activeModule, adminLocation]);
+  useEffect(() => { if (currentUser) setNameForm(currentUser.name || ''); }, [currentUser]);
+  useEffect(() => { setCurrentPage(1); setRecordSearch(''); }, [activeModule, adminLocation]);
   useEffect(() => { setStaffCurrentPage(1); setStaffRecordSearch(''); setEditingStaffEntry(null); }, [activeModule, selectedLocation]);
-  
+
   const isAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'finance_admin';
   const isSuperAdmin = currentUser?.role === 'super_admin';
 
@@ -677,548 +542,39 @@ useEffect(() => { setCurrentPage(1); setRecordSearch(''); }, [activeModule, admi
     setTimeout(() => setMessage({ type: '', text: '' }), 4000);
   };
 
-  const loadLocations = async () => {
-    const { data, error } = await supabase.from('locations').select('*').eq('is_active', true).order('name');
-    if (data) setLocations(data);
-  };
-
-  const loadUsers = async () => {
-    console.log('Loading users...');
-    
-    // Get all users without any joins
-const { data: usersData, error: usersError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
-    
-    if (usersError) {
-      console.error('Users load error:', usersError);
+  const handleLogin = () => {
+    if (!loginEmail || !loginPassword) {
+      showMessage('error', 'Please enter email/username and password');
       return;
     }
-    
-    if (!usersData || usersData.length === 0) {
-      setUsers([]);
-      return;
-    }
-    
-    // Get user_locations separately (no join to users)
-    const { data: userLocsData } = await supabase
-      .from('user_locations')
-      .select('user_id, location_id');
-    
-    // Get all locations
-    const { data: locsData } = await supabase
-      .from('locations')
-      .select('id, name');
-    
-    // Build a location map for quick lookup
-    const locationMap = {};
-    locsData?.forEach(loc => { locationMap[loc.id] = loc; });
-    
-    // Combine users with their locations
-    const usersWithLocations = usersData.map(user => ({
-      ...user,
-      locations: userLocsData
-        ?.filter(ul => ul.user_id === user.id)
-        ?.map(ul => locationMap[ul.location_id])
-        ?.filter(Boolean) || []
-    }));
-    
-    console.log('Loaded users:', usersWithLocations.length);
-    setUsers(usersWithLocations);
-  };
-
-  const loadDocuments = async () => {
-    // Get documents without joining to users
-    const { data: docsData, error } = await supabase
-      .from('documents')
-      .select('*')
-      .order('uploaded_at', { ascending: false })
-      .limit(200);
-    
-    if (error) {
-      console.error('Documents load error:', error);
-      return;
-    }
-    
-    if (!docsData || docsData.length === 0) {
-      setDocuments([]);
-      return;
-    }
-    
-    // Get uploader names separately
-    const uploaderIds = [...new Set(docsData.map(d => d.uploaded_by).filter(Boolean))];
-    const { data: uploadersData } = await supabase
-      .from('users')
-      .select('id, name')
-      .in('id', uploaderIds);
-    
-    const uploaderMap = {};
-    uploadersData?.forEach(u => { uploaderMap[u.id] = u; });
-    
-    const docsWithUploaders = docsData.map(doc => ({
-      ...doc,
-      uploader: uploaderMap[doc.uploaded_by] || null
-    }));
-    
-    console.log('Loaded documents:', docsWithUploaders.length);
-    setDocuments(docsWithUploaders);
-  };
-
-  const loadModuleData = async (moduleId) => {
-    setLoading(true);
-    const module = ALL_MODULES.find(m => m.id === moduleId);
-    if (!module) return;
-
-    let query = supabase.from(module.table).select('*').order('created_at', { ascending: false });
-
-    if (!isAdmin && selectedLocation) {
-      const loc = locations.find(l => l.name === selectedLocation);
-      if (loc) query = query.eq('location_id', loc.id);
-    } else if (isAdmin && adminLocation !== 'all') {
-      const loc = locations.find(l => l.name === adminLocation);
-      if (loc) query = query.eq('location_id', loc.id);
-    }
-
-    const { data, error } = await query.limit(500);
-    if (error) {
-      console.error('Module data load error:', moduleId, error);
-    }
-    if (data && data.length > 0) {
-      // Get location names
-      const locationIds = [...new Set(data.map(d => d.location_id).filter(Boolean))];
-      const { data: locsData } = await supabase.from('locations').select('id, name').in('id', locationIds);
-      const locMap = {};
-      locsData?.forEach(l => { locMap[l.id] = l; });
-      
-      // Get creator/updater names
-      const userIds = [...new Set([...data.map(d => d.created_by), ...data.map(d => d.updated_by)].filter(Boolean))];
-      const { data: usersData } = await supabase.from('users').select('id, name').in('id', userIds);
-      const userMap = {};
-      usersData?.forEach(u => { userMap[u.id] = u; });
-      
-      // Combine
-      const enrichedData = data.map(d => ({
-        ...d,
-        locations: locMap[d.location_id] || null,
-        creator: userMap[d.created_by] || null,
-        updater: userMap[d.updated_by] || null
-      }));
-      
-      console.log(`Loaded ${moduleId}:`, enrichedData.length, 'records');
-      setModuleData(prev => ({ ...prev, [moduleId]: enrichedData }));
-    } else {
-      setModuleData(prev => ({ ...prev, [moduleId]: [] }));
-    }
-    setLoading(false);
-  };
-
-  const saveSession = (user, locations, selectedLoc, lastLoginInfo, remember) => {
-  const sessionData = {
-    user,
-    userLocations: locations,
-    selectedLocation: selectedLoc,
-    lastLogin: lastLoginInfo,
-    savedAt: new Date().toISOString(),
-    expiresAt: remember 
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-      : null // Session storage handles expiry on browser close
-  };
-  
-  if (remember) {
-    localStorage.setItem('cms_session', JSON.stringify(sessionData));
-    sessionStorage.removeItem('cms_session');
-  } else {
-    sessionStorage.setItem('cms_session', JSON.stringify(sessionData));
-    localStorage.removeItem('cms_session');
-  }
-};
-
-const clearSession = () => {
-  localStorage.removeItem('cms_session');
-  sessionStorage.removeItem('cms_session');
-  // Broadcast logout to other tabs
-  localStorage.setItem('cms_logout', Date.now().toString());
-  localStorage.removeItem('cms_logout');
-};
-
-const logLoginActivity = async (userId) => {
-  try {
-    // Get user agent info
-    const userAgent = navigator.userAgent;
-    let deviceInfo = 'Unknown Device';
-    
-    if (/mobile/i.test(userAgent)) {
-      deviceInfo = 'Mobile Device';
-      if (/iPhone/i.test(userAgent)) deviceInfo = 'iPhone';
-      else if (/iPad/i.test(userAgent)) deviceInfo = 'iPad';
-      else if (/Android/i.test(userAgent)) deviceInfo = 'Android Device';
-    } else {
-      deviceInfo = 'Desktop';
-      if (/Windows/i.test(userAgent)) deviceInfo = 'Windows PC';
-      else if (/Mac/i.test(userAgent)) deviceInfo = 'Mac';
-      else if (/Linux/i.test(userAgent)) deviceInfo = 'Linux PC';
-    }
-    
-    // Get browser info
-    let browser = 'Unknown Browser';
-    if (/Chrome/i.test(userAgent) && !/Edg/i.test(userAgent)) browser = 'Chrome';
-    else if (/Safari/i.test(userAgent) && !/Chrome/i.test(userAgent)) browser = 'Safari';
-    else if (/Firefox/i.test(userAgent)) browser = 'Firefox';
-    else if (/Edg/i.test(userAgent)) browser = 'Edge';
-    
-    const locationInfo = `${deviceInfo} - ${browser}`;
-    
-    // Try to get IP (this will only work with an external service)
-    let ipAddress = null;
-    try {
-      const ipResponse = await fetch('https://api.ipify.org?format=json');
-      const ipData = await ipResponse.json();
-      ipAddress = ipData.ip;
-    } catch (e) {
-      console.log('Could not fetch IP address');
-    }
-    
-    // Insert login activity
-    await supabase.from('login_activity').insert({
-      user_id: userId,
-      ip_address: ipAddress,
-      user_agent: userAgent.substring(0, 500),
-      location_info: locationInfo
-    });
-    
-    return { ipAddress, locationInfo, login_at: new Date().toISOString() };
-  } catch (e) {
-    console.error('Login activity error:', e);
-    return null;
-  }
-};
-
-const getLastLoginForUser = async (userId) => {
-  const { data } = await supabase
-    .from('login_activity')
-    .select('login_at, location_info, ip_address')
-    .eq('user_id', userId)
-    .order('login_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  
-  return data;
-};
-
-const loadLoginHistory = async (userId) => {
-  const { data } = await supabase
-    .from('login_activity')
-    .select('*')
-    .eq('user_id', userId)
-    .order('login_at', { ascending: false })
-    .limit(10);
-  
-  if (data) setLoginHistory(data);
-};
-
-  const loadUserSessions = async (userId) => {
-  setLoadingUserSessions(true);
-  const { data } = await supabase
-    .from('login_activity')
-    .select('*')
-    .eq('user_id', userId)
-    .order('login_at', { ascending: false })
-    .limit(20);
-  
-  setUserSessionsData(data || []);
-  setLoadingUserSessions(false);
-};
-  
-const handleLogin = async () => {
-  if (!loginEmail || !loginPassword) {
-    showMessage('error', 'Please enter email/username and password');
-    return;
-  }
-
-  setLoginLoading(true);
-  
-  try {
-    // Try to find user by email OR username
-    const loginValue = loginEmail.toLowerCase().trim();
-    
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .or(`email.eq.${loginValue},username.eq.${loginValue}`)
-      .eq('password_hash', loginPassword)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (userError) {
-      console.error('Login error:', userError);
-      showMessage('error', 'Login failed. Please try again.');
-      setLoginLoading(false);
-      return;
-    }
-
-    if (!user) {
-      showMessage('error', 'Invalid email or password');
-      setLoginLoading(false);
-      return;
-    }
-
-    // Get last login BEFORE logging new activity
-    const previousLogin = await getLastLoginForUser(user.id);
-    setLastLogin(previousLogin);
-
-    // Log this login activity
-    await logLoginActivity(user.id);
-
-    // Get user_locations separately without joins
-    const { data: userLocsData } = await supabase
-      .from('user_locations')
-      .select('location_id')
-      .eq('user_id', user.id);
-    
-    // Get location details
-    const locIds = userLocsData?.map(ul => ul.location_id) || [];
-    let locationsList = [];
-    if (locIds.length > 0) {
-      const { data: locsData } = await supabase
-        .from('locations')
-        .select('id, name')
-        .in('id', locIds);
-      locationsList = locsData || [];
-    }
-
-    await supabase.from('users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
-
-    const selectedLoc = locationsList.length === 1 ? locationsList[0].name : null;
-
-    // Save session (with or without "Remember Me")
-    saveSession(user, locationsList, selectedLoc, previousLogin, rememberMe);
-
-    setCurrentUser(user);
-    setUserLocations(locationsList);
-
-    if (selectedLoc) {
-      setSelectedLocation(selectedLoc);
-    }
-
-    if (user.role === 'super_admin' || user.role === 'finance_admin') {
-      loadUsers();
-      loadLoginHistory(user.id);
-    }
-
-    showMessage('success', '✓ Login successful!');
-
-  } catch (err) {
-    console.error('Login exception:', err);
-    showMessage('error', 'An error occurred. Please try again.');
-  }
-
-  setLoginLoading(false);
-};
-
-  const handleLogout = () => {
-  clearSession();
-  setCurrentUser(null);
-  setUserLocations([]);
-  setSelectedLocation(null);
-  setLoginEmail('');
-  setLoginPassword('');
-  setRememberMe(false);
-  setLastLogin(null);
-  setLoginHistory([]);
-  setView('entry');
-  setAdminView('records');
-  setPwdForm({ current: '', new: '', confirm: '' });
-  setChatMessages([{
-    role: 'assistant',
-    content: "👋 Hi! I'm your AI assistant. I can help with:\n\n• Data summaries & reports\n• Weekly comparisons\n• Location analytics\n• IT request status\n\nWhat would you like to know?"
-  }]);
-  setModuleData({});
-};
-
-const addUser = async () => {
-    if (!newUser.name || !newUser.username || !newUser.email || !newUser.password) {
-      showMessage('error', 'Please fill all required fields');
-      return;
-    }
-
-    // Check if username already exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', newUser.username.toLowerCase())
-      .maybeSingle();
-    
-    if (existingUser) {
-      showMessage('error', 'Username already exists');
-      return;
-    }
-
-const { data: createdUser, error } = await supabase
-      .from('users')
-      .insert({
-        name: newUser.name,
-        username: newUser.username.toLowerCase(),
-        email: newUser.email.toLowerCase(),
-        password_hash: newUser.password,
-        role: newUser.role,
-        created_by: currentUser.id
-      })
-      .select()
-      .single();
-
-    if (error) {
-      showMessage('error', error.message.includes('duplicate') ? 'Email already exists' : 'Failed to create user');
-      return;
-    }
-
-    if (newUser.role === 'staff' && newUser.locations.length > 0) {
-      const locationAssignments = newUser.locations.map(locId => ({
-        user_id: createdUser.id,
-        location_id: locId,
-        assigned_by: currentUser.id
-      }));
-      await supabase.from('user_locations').insert(locationAssignments);
-    }
-
-    showMessage('success', '✓ User created successfully!');
-    setNewUser({ name: '', username: '', email: '', password: '', role: 'staff', locations: [] });
-    setShowAddUser(false);
-    loadUsers();
-  };
-
-const updateUser = async () => {
-    if (!editingUser.name || !editingUser.email) {
-      showMessage('error', 'Please fill all required fields');
-      return;
-    }
-
-    // Check if username is taken by another user (if username provided)
-    if (editingUser.username) {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', editingUser.username.toLowerCase())
-        .neq('id', editingUser.id)
-        .maybeSingle();
-      
-      if (existingUser) {
-        showMessage('error', 'Username already taken by another user');
+    setLoginLoading(true);
+    setTimeout(() => {
+      const loginValue = loginEmail.toLowerCase().trim();
+      const user = DEMO_USERS.find(u => (u.email.toLowerCase() === loginValue || u.username.toLowerCase() === loginValue) && u.password_hash === loginPassword && u.is_active);
+      if (!user) {
+        showMessage('error', 'Invalid email/username or password');
+        setLoginLoading(false);
         return;
       }
-    }
-
-    const updateData = {
-      name: editingUser.name,
-      email: editingUser.email.toLowerCase(),
-      role: editingUser.role,
-      updated_by: currentUser.id
-    };
-
-    // Only update username if provided
-    if (editingUser.username) {
-      updateData.username = editingUser.username.toLowerCase();
-    }
-
-    if (editingUser.newPassword) {
-      updateData.password_hash = editingUser.newPassword;
-    }
-
-    const { error } = await supabase.from('users').update(updateData).eq('id', editingUser.id);
-
-    if (error) {
-      showMessage('error', 'Failed to update user');
-      return;
-    }
-
-    await supabase.from('user_locations').delete().eq('user_id', editingUser.id);
-    if (editingUser.role === 'staff' && editingUser.locationIds?.length > 0) {
-      const locationAssignments = editingUser.locationIds.map(locId => ({
-        user_id: editingUser.id,
-        location_id: locId,
-        assigned_by: currentUser.id
-      }));
-      await supabase.from('user_locations').insert(locationAssignments);
-    }
-
-    showMessage('success', '✓ User updated!');
-    setEditingUser(null);
-    loadUsers();
+      setCurrentUser(user);
+      setUserLocations(user.locations);
+      if (user.locations.length === 1) setSelectedLocation(user.locations[0].name);
+      showMessage('success', '✓ Login successful!');
+      setLoginLoading(false);
+    }, 500);
   };
 
-const deleteUser = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
-    
-    const { error } = await supabase
-      .from('users')
-      .update({ is_active: false, updated_by: currentUser.id })
-      .eq('id', id);
-    
-    if (error) {
-      showMessage('error', 'Failed to delete user: ' + error.message);
-      return;
-    }
-    
-    showMessage('success', '✓ User deleted');
-    loadUsers();
-  };
-  const toggleUserLocation = (locId, isEditing = false) => {
-    if (isEditing) {
-      const locs = editingUser.locationIds || [];
-      const newLocs = locs.includes(locId) ? locs.filter(l => l !== locId) : [...locs, locId];
-      setEditingUser({ ...editingUser, locationIds: newLocs });
-    } else {
-      const locs = newUser.locations;
-      const newLocs = locs.includes(locId) ? locs.filter(l => l !== locId) : [...locs, locId];
-      setNewUser({ ...newUser, locations: newLocs });
-    }
-  };
-
-  const changePassword = async () => {
-    if (pwdForm.current !== currentUser.password_hash) {
-      showMessage('error', 'Current password is incorrect');
-      return;
-    }
-    if (pwdForm.new.length < 4) {
-      showMessage('error', 'New password must be at least 4 characters');
-      return;
-    }
-    if (pwdForm.new !== pwdForm.confirm) {
-      showMessage('error', 'New passwords do not match');
-      return;
-    }
-
-    const { error } = await supabase
-      .from('users')
-      .update({ password_hash: pwdForm.new, updated_by: currentUser.id })
-      .eq('id', currentUser.id);
-
-    if (error) {
-      showMessage('error', 'Failed to update password');
-      return;
-    }
-
-    setCurrentUser({ ...currentUser, password_hash: pwdForm.new });
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setUserLocations([]);
+    setSelectedLocation(null);
+    setLoginEmail('');
+    setLoginPassword('');
+    setView('entry');
+    setAdminView('records');
     setPwdForm({ current: '', new: '', confirm: '' });
-    showMessage('success', '✓ Password changed successfully!');
   };
-const changeName = async () => {
-  if (!nameForm.trim()) {
-    showMessage('error', 'Name cannot be empty');
-    return;
-  }
-  const { error } = await supabase
-    .from('users')
-    .update({ name: nameForm.trim(), updated_by: currentUser.id })
-    .eq('id', currentUser.id);
-  if (error) {
-    showMessage('error', 'Failed to update name');
-    return;
-  }
-  setCurrentUser({ ...currentUser, name: nameForm.trim() });
-  showMessage('success', '✓ Name updated successfully!');
-};
+
   const updateForm = (module, field, value) => {
     setForms(prev => ({ ...prev, [module]: { ...prev[module], [field]: value } }));
   };
@@ -1227,751 +583,239 @@ const changeName = async () => {
     setFiles(prev => ({ ...prev, [module]: { ...prev[module], [field]: newFiles } }));
   };
 
-  const uploadFiles = async (recordType, recordId, filesByCategory) => {
-    const uploadedFiles = [];
-    console.log('Uploading files for', recordType, recordId, filesByCategory);
-
-    for (const [category, fileList] of Object.entries(filesByCategory)) {
-      for (const file of fileList) {
-        if (!file.isNew || !file.file) {
-          console.log('Skipping file (not new or no file object):', file.name);
-          continue;
-        }
-
-        const filePath = `${recordType}/${recordId}/${category}/${Date.now()}_${file.name}`;
-        console.log('Uploading to path:', filePath);
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('clinic-documents')
-          .upload(filePath, file.file);
-
-        if (uploadError) {
-          console.error('Storage upload error:', uploadError);
-          showMessage('error', `Failed to upload ${file.name}: ${uploadError.message}`);
-          continue;
-        }
-
-        console.log('Upload success, saving to documents table...');
-        
-        // Save file metadata to documents table
-        const { data: docData, error: docError } = await supabase.from('documents').insert({
-          record_type: recordType,
-          record_id: recordId,
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          category: category,
-          storage_path: filePath,
-          uploaded_by: currentUser.id
-        }).select().single();
-
-        if (docError) {
-          console.error('Document record error:', docError);
-        } else {
-          console.log('Document saved:', docData);
-          uploadedFiles.push({ ...file, storage_path: filePath, id: docData.id });
-        }
-      }
-    }
-
-    console.log('Total files uploaded:', uploadedFiles.length);
-    return uploadedFiles;
-  };
-
-  const saveEntry = async (moduleId) => {
+  const saveEntry = (moduleId) => {
     setSaving(true);
-    const module = ALL_MODULES.find(m => m.id === moduleId);
-    const form = forms[moduleId];
-    const loc = locations.find(l => l.name === selectedLocation);
-
-    if (!loc) {
-      showMessage('error', 'Please select a location');
-      setSaving(false);
-      return;
-    }
-
-    let entryData = { location_id: loc.id, created_by: currentUser.id, updated_by: currentUser.id };
-
-if (moduleId === 'daily-recon') {
-  entryData = {
-    ...entryData,
-    recon_date: form.recon_date,
-    cash: parseFloat(form.cash) || 0,
-    credit_card: parseFloat(form.credit_card) || 0,
-    checks_otc: parseFloat(form.checks_otc) || 0,
-    insurance_checks: parseFloat(form.insurance_checks) || 0,
-    care_credit: parseFloat(form.care_credit) || 0,
-    vcc: parseFloat(form.vcc) || 0,
-    efts: parseFloat(form.efts) || 0,
-    deposit_cash: parseFloat(form.deposit_cash) || 0,
-    deposit_credit_card: parseFloat(form.deposit_credit_card) || 0,
-    deposit_checks: parseFloat(form.deposit_checks) || 0,
-    deposit_insurance: parseFloat(form.deposit_insurance) || 0,
-    deposit_care_credit: parseFloat(form.deposit_care_credit) || 0,
-    deposit_vcc: parseFloat(form.deposit_vcc) || 0,
-    deposit_efts: parseFloat(form.deposit_efts) || 0,
-    notes: form.notes,
-    entered_by: currentUser.name
-  };
-} else if (moduleId === 'billing-inquiry') {
-  entryData = {
-    ...entryData,
-    patient_name: form.patient_name,
-    chart_number: form.chart_number,
-    parent_name: form.parent_name,
-    date_of_request: form.date_of_request || null,
-    inquiry_type: form.inquiry_type,
-    description: form.description,
-    amount_in_question: parseFloat(form.amount_in_question) || null,
-    best_contact_method: form.best_contact_method || null,
-    best_contact_time: form.best_contact_time,
-    billing_team_reviewed: form.billing_team_reviewed,
-    date_reviewed: form.date_reviewed || null,
-    status: form.status || 'Pending',
-    result: form.result
-  };
-} else if (moduleId === 'bills-payment') {
-  entryData = {
-    ...entryData,
-    bill_status: form.bill_status || 'Pending',
-    bill_date: form.bill_date,
-    vendor: form.vendor,
-    description: form.description,
-    amount: parseFloat(form.amount) || 0,
-    due_date: form.due_date || null,
-    manager_initials: form.manager_initials,
-    ap_reviewed: form.ap_reviewed,
-    date_reviewed: form.date_reviewed || null,
-    paid: form.paid
-  };
-} else if (moduleId === 'order-requests') {
-  entryData = {
-    ...entryData,
-    date_entered: form.date_entered,
-    vendor: form.vendor,
-    invoice_number: form.invoice_number,
-    invoice_date: form.invoice_date || null,
-    due_date: form.due_date || null,
-    amount: parseFloat(form.amount) || 0,
-    entered_by: currentUser.name,
-    notes: form.notes
-  };
-} else if (moduleId === 'refund-requests') {
-      entryData = {
-        ...entryData,
-        patient_name: form.patient_name,
-        chart_number: form.chart_number,
-        parent_name: form.parent_name,
-        rp_address: form.rp_address,
-        date_of_request: form.date_of_request,
-        type: form.type || null,
-        description: form.description,
-        amount_requested: parseFloat(form.amount_requested) || 0,
-        best_contact_method: form.best_contact_method || null,
-        eassist_audited: form.eassist_audited === 'Yes' ? true : form.eassist_audited === 'No' ? false : null,
+    setTimeout(() => {
+      const form = forms[moduleId];
+      const loc = locations.find(l => l.name === selectedLocation);
+      if (!loc) {
+        showMessage('error', 'Please select a location');
+        setSaving(false);
+        return;
+      }
+      const newEntry = {
+        id: `${moduleId}-${Date.now()}`,
+        ...form,
+        location_id: loc.id,
+        locations: loc,
+        created_at: new Date().toISOString(),
+        created_by: currentUser.id,
+        creator: currentUser,
         status: form.status || 'Pending'
       };
-    } else if (moduleId === 'it-requests') {
-      entryData = {
-        ...entryData,
-        date_reported: form.date_reported,
-        urgency: form.urgency || null,
-        requester_name: form.requester_name,
-        device_system: form.device_system,
-        description_of_issue: form.description_of_issue,
-        best_contact_method: form.best_contact_method || null,
-        best_contact_time: form.best_contact_time,
-        status: 'Open'
-      };
-    }
-
-    const { data: newEntry, error } = await supabase
-      .from(module.table)
-      .insert(entryData)
-      .select()
-      .single();
-
-    if (error) {
-      showMessage('error', 'Failed to save entry: ' + error.message);
+      if (moduleId === 'daily-recon') {
+        newEntry.cash = parseFloat(form.cash) || 0;
+        newEntry.credit_card = parseFloat(form.credit_card) || 0;
+        newEntry.checks_otc = parseFloat(form.checks_otc) || 0;
+        newEntry.insurance_checks = parseFloat(form.insurance_checks) || 0;
+        newEntry.care_credit = parseFloat(form.care_credit) || 0;
+        newEntry.vcc = parseFloat(form.vcc) || 0;
+        newEntry.efts = parseFloat(form.efts) || 0;
+        newEntry.total_collected = newEntry.cash + newEntry.credit_card + newEntry.checks_otc + newEntry.insurance_checks + newEntry.care_credit + newEntry.vcc + newEntry.efts;
+        newEntry.deposit_cash = 0;
+        newEntry.deposit_credit_card = 0;
+        newEntry.deposit_checks = 0;
+        newEntry.total_deposit = 0;
+      }
+      if (moduleId === 'it-requests') {
+        newEntry.ticket_number = 1000 + (moduleData['it-requests']?.length || 0) + 1;
+      }
+      if (moduleId === 'bills-payment' || moduleId === 'order-requests' || moduleId === 'refund-requests' || moduleId === 'billing-inquiry') {
+        newEntry.amount = parseFloat(form.amount || form.amount_requested || form.amount_in_question) || 0;
+      }
+      setModuleData(prev => ({ ...prev, [moduleId]: [newEntry, ...(prev[moduleId] || [])] }));
+      const resetForm = { ...forms[moduleId] };
+      Object.keys(resetForm).forEach(k => { if (!k.includes('date')) resetForm[k] = ''; });
+      setForms(prev => ({ ...prev, [moduleId]: { ...resetForm, [Object.keys(resetForm).find(k => k.includes('date'))]: today } }));
+      setFiles(prev => ({ ...prev, [moduleId]: Object.fromEntries(Object.entries(files[moduleId]).map(([k]) => [k, []])) }));
+      showMessage('success', '✓ Entry saved successfully!');
       setSaving(false);
-      return;
-    }
+    }, 500);
+  };
 
-    await uploadFiles(moduleId, newEntry.id, files[moduleId]);
-
-    showMessage('success', '✓ Entry saved successfully!');
-
-    const resetForm = { ...forms[moduleId] };
-    Object.keys(resetForm).forEach(k => {
-      if (!k.includes('date')) resetForm[k] = '';
-    });
-    setForms(prev => ({ ...prev, [moduleId]: { ...resetForm, [Object.keys(resetForm).find(k => k.includes('date'))]: today } }));
-    setFiles(prev => ({
+  const startEditingRecon = (entry) => {
+    setEditingRecon(entry.id);
+    setReconForm(prev => ({
       ...prev,
-      [moduleId]: Object.fromEntries(Object.entries(files[moduleId]).map(([k]) => [k, []]))
+      [entry.id]: {
+        deposit_cash: entry.deposit_cash || '',
+        deposit_credit_card: entry.deposit_credit_card || '',
+        deposit_checks: entry.deposit_checks || '',
+        deposit_insurance: entry.deposit_insurance || '',
+        deposit_care_credit: entry.deposit_care_credit || '',
+        deposit_vcc: entry.deposit_vcc || '',
+        deposit_efts: entry.deposit_efts || '',
+        status: entry.status || 'Pending'
+      }
     }));
-
-    loadModuleData(moduleId);
-    setSaving(false);
   };
 
-  const updateDailyRecon = async (entryId) => {
-  if (!reconForm[entryId]) return;
-  
-  const form = reconForm[entryId];
-  const updateData = {
-    deposit_cash: parseFloat(form.deposit_cash) || 0,
-    deposit_credit_card: parseFloat(form.deposit_credit_card) || 0,
-    deposit_checks: parseFloat(form.deposit_checks) || 0,
-    deposit_insurance: parseFloat(form.deposit_insurance) || 0,
-    deposit_care_credit: parseFloat(form.deposit_care_credit) || 0,
-    deposit_vcc: parseFloat(form.deposit_vcc) || 0,
-    deposit_efts: parseFloat(form.deposit_efts) || 0,
-    status: form.status || 'Pending',
-    reviewed_by: currentUser.id,
-    reviewed_at: new Date().toISOString(),
-    updated_by: currentUser.id
+  const updateReconForm = (entryId, field, value) => {
+    setReconForm(prev => ({ ...prev, [entryId]: { ...prev[entryId], [field]: value } }));
   };
 
-  const { error } = await supabase
-    .from('daily_recon')
-    .update(updateData)
-    .eq('id', entryId);
+  const updateDailyRecon = (entryId) => {
+    const form = reconForm[entryId];
+    if (!form) return;
+    setModuleData(prev => ({
+      ...prev,
+      'daily-recon': prev['daily-recon'].map(e => e.id === entryId ? {
+        ...e,
+        deposit_cash: parseFloat(form.deposit_cash) || 0,
+        deposit_credit_card: parseFloat(form.deposit_credit_card) || 0,
+        deposit_checks: parseFloat(form.deposit_checks) || 0,
+        deposit_insurance: parseFloat(form.deposit_insurance) || 0,
+        deposit_care_credit: parseFloat(form.deposit_care_credit) || 0,
+        deposit_vcc: parseFloat(form.deposit_vcc) || 0,
+        deposit_efts: parseFloat(form.deposit_efts) || 0,
+        status: form.status,
+        get total_deposit() { return this.deposit_cash + this.deposit_credit_card + this.deposit_checks + this.deposit_insurance + this.deposit_care_credit + this.deposit_vcc + this.deposit_efts; }
+      } : e)
+    }));
+    showMessage('success', '✓ Daily Recon updated!');
+    setEditingRecon(null);
+    setReconForm(prev => { const n = { ...prev }; delete n[entryId]; return n; });
+  };
 
-  if (error) {
-    showMessage('error', 'Failed to update record');
-    return;
-  }
-
-  showMessage('success', '✓ Daily Recon updated!');
-  setEditingRecon(null);
-  setReconForm(prev => {
-    const newForm = { ...prev };
-    delete newForm[entryId];
-    return newForm;
-  });
-  loadModuleData('daily-recon');
-};
-
-const startEditingRecon = (entry) => {
-  setEditingRecon(entry.id);
-  setReconForm(prev => ({
-    ...prev,
-    [entry.id]: {
-      deposit_cash: entry.deposit_cash || '',
-      deposit_credit_card: entry.deposit_credit_card || '',
-      deposit_checks: entry.deposit_checks || '',
-      deposit_insurance: entry.deposit_insurance || '',
-      deposit_care_credit: entry.deposit_care_credit || '',
-      deposit_vcc: entry.deposit_vcc || '',
-      deposit_efts: entry.deposit_efts || '',
-      status: entry.status || 'Pending'
-    }
-  }));
-};
-
-const updateReconForm = (entryId, field, value) => {
-  setReconForm(prev => ({
-    ...prev,
-    [entryId]: {
-      ...prev[entryId],
-      [field]: value
-    }
-  }));
-};
-  
-  const updateEntryStatus = async (moduleId, entryId, newStatus, additionalFields = {}) => {
-    const module = ALL_MODULES.find(m => m.id === moduleId);
-
-    const updateData = {
-      status: newStatus,
-      updated_by: currentUser.id,
-      ...additionalFields
-    };
-
-    if (moduleId === 'it-requests' && (newStatus === 'Resolved' || newStatus === 'Closed')) {
-      updateData.resolved_at = new Date().toISOString();
-      updateData.resolved_by = currentUser.id;
-    }
-
-    const { error } = await supabase
-      .from(module.table)
-      .update(updateData)
-      .eq('id', entryId);
-
-    if (error) {
-      showMessage('error', 'Failed to update status');
-      return;
-    }
-
+  const updateEntryStatus = (moduleId, entryId, newStatus, additionalFields = {}) => {
+    setModuleData(prev => ({
+      ...prev,
+      [moduleId]: prev[moduleId].map(e => e.id === entryId ? { ...e, status: newStatus, ...additionalFields } : e)
+    }));
     showMessage('success', '✓ Status updated!');
     setEditingStatus(null);
-    loadModuleData(moduleId);
   };
 
-  const exportToCSV = async () => {
-    const module = ALL_MODULES.find(m => m.id === exportModule);
-    let query = supabase.from(module.table).select('*, locations(name)');
-
-    if (exportLocation !== 'all') {
-      const loc = locations.find(l => l.name === exportLocation);
-      if (loc) query = query.eq('location_id', loc.id);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
-
-    if (!data || data.length === 0) {
+  const exportToCSV = () => {
+    const data = moduleData[exportModule] || [];
+    if (data.length === 0) {
       showMessage('error', 'No data to export');
       return;
     }
+    showMessage('success', '✓ Export complete! (Demo mode)');
+  };
 
-    const headers = Object.keys(data[0]).filter(k => k !== 'locations' && k !== 'location_id');
-    headers.push('location');
-
-    const rows = data.map(row => {
-      const newRow = {};
-      headers.forEach(h => {
-        if (h === 'location') {
-          newRow[h] = row.locations?.name || '';
-        } else {
-          newRow[h] = row[h] ?? '';
-        }
+  const getModuleEntries = () => {
+    let data = moduleData[activeModule] || [];
+    if (isAdmin && adminLocation !== 'all') {
+      data = data.filter(e => e.locations?.name === adminLocation);
+    }
+    if (!isAdmin && selectedLocation) {
+      data = data.filter(e => e.locations?.name === selectedLocation);
+    }
+    if (recordSearch.trim()) {
+      const search = recordSearch.toLowerCase();
+      data = data.filter(e => {
+        const searchableFields = [e.recon_date, e.patient_name, e.vendor, e.chart_number, e.description, e.description_of_issue, e.locations?.name, e.creator?.name, e.status, e.ticket_number?.toString()];
+        return searchableFields.some(field => field?.toLowerCase()?.includes(search));
       });
-      return newRow;
-    });
-
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => headers.map(h => `"${String(row[h]).replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${exportModule}_${exportLocation}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-
-    showMessage('success', '✓ Export complete!');
-  };
-
-  const askAI = async () => {
-    if (!chatInput.trim()) return;
-
-    const userMessage = chatInput;
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setChatInput('');
-    setAiLoading(true);
-
-    let dataSummary = '\n📊 SYSTEM OVERVIEW:\n';
-    
-    for (const mod of ALL_MODULES) {
-      const data = moduleData[mod.id] || [];
-      if (data.length > 0) {
-        dataSummary += `\n${mod.name}: ${data.length} records`;
-      }
     }
-
-    dataSummary += `\n\n📍 Locations: ${locations.map(l => l.name).join(', ')}`;
-    dataSummary += `\n👤 Current user: ${currentUser?.name} (${currentUser?.role})`;
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: userMessage }], dataSummary })
-      });
-
-      const data = await response.json();
-      const aiResponse = data.content?.[0]?.text || 'Sorry, I could not process that request.';
-      setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: '❌ Unable to connect to AI.' }]);
-    }
-
-    setAiLoading(false);
+    data = [...data].sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+    return data;
   };
 
-  const getDocumentUrl = async (storagePath) => {
-    const { data } = await supabase.storage
-      .from('clinic-documents')
-      .createSignedUrl(storagePath, 3600); // 1 hour expiry
-    return data?.signedUrl;
+  const getPaginatedEntries = () => {
+    const allEntries = getModuleEntries();
+    if (recordsPerPage === 'all') return allEntries;
+    const startIndex = (currentPage - 1) * recordsPerPage;
+    return allEntries.slice(startIndex, startIndex + recordsPerPage);
   };
 
-  const viewDocument = async (doc) => {
-    const url = await getDocumentUrl(doc.storage_path);
-    if (url) {
-      setViewingFile({ ...doc, url, name: doc.file_name, type: doc.file_type });
-    } else {
-      showMessage('error', 'Could not load document');
-    }
+  const getTotalPages = () => {
+    const allEntries = getModuleEntries();
+    if (recordsPerPage === 'all') return 1;
+    return Math.ceil(allEntries.length / recordsPerPage);
   };
-
-  const downloadDocument = async (doc) => {
-    const url = await getDocumentUrl(doc.storage_path);
-    if (url) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.file_name;
-      a.click();
-    } else {
-      showMessage('error', 'Could not download document');
-    }
-  };
-
-const getModuleEntries = () => {
-  let data = moduleData[activeModule] || [];
-  
-  // Apply search filter
-  if (recordSearch.trim()) {
-    const search = recordSearch.toLowerCase();
-    data = data.filter(e => {
-      // Search across common fields
-      const searchableFields = [
-        e.recon_date,
-        e.patient_name,
-        e.vendor,
-        e.chart_number,
-        e.parent_name,
-        e.description,
-        e.description_of_issue,
-        e.invoice_number,
-        e.requester_name,
-        e.device_system,
-        e.notes,
-        e.result,
-        e.locations?.name,
-        e.creator?.name,
-        e.status,
-        e.ticket_number?.toString(),
-        e.inquiry_type,
-        e.type,
-        e.urgency
-      ];
-      return searchableFields.some(field => field?.toLowerCase()?.includes(search));
-    });
-  }
-  
-  // Apply date sorting
-  data = [...data].sort((a, b) => {
-    const dateA = new Date(a.created_at);
-    const dateB = new Date(b.created_at);
-    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-  });
-  
-  return data;
-};
-
-const getPaginatedEntries = () => {
-  const allEntries = getModuleEntries();
-  if (recordsPerPage === 'all') return allEntries;
-  const startIndex = (currentPage - 1) * recordsPerPage;
-  return allEntries.slice(startIndex, startIndex + recordsPerPage);
-};
-
-const getTotalPages = () => {
-  const allEntries = getModuleEntries();
-  if (recordsPerPage === 'all') return 1;
-  return Math.ceil(allEntries.length / recordsPerPage);
-};
-
-  const startEditingStaffEntry = (entry) => {
-  setEditingStaffEntry(entry.id);
-  if (activeModule === 'daily-recon') {
-    setStaffEditForm({
-      recon_date: entry.recon_date || '',
-      cash: entry.cash || '',
-      credit_card: entry.credit_card || '',
-      checks_otc: entry.checks_otc || '',
-      insurance_checks: entry.insurance_checks || '',
-      care_credit: entry.care_credit || '',
-      vcc: entry.vcc || '',
-      efts: entry.efts || '',
-      notes: entry.notes || ''
-    });
-  } else if (activeModule === 'billing-inquiry') {
-    setStaffEditForm({
-      patient_name: entry.patient_name || '',
-      chart_number: entry.chart_number || '',
-      parent_name: entry.parent_name || '',
-      date_of_request: entry.date_of_request || '',
-      inquiry_type: entry.inquiry_type || '',
-      description: entry.description || '',
-      amount_in_question: entry.amount_in_question || '',
-      best_contact_method: entry.best_contact_method || '',
-      best_contact_time: entry.best_contact_time || ''
-    });
-  } else if (activeModule === 'bills-payment') {
-    setStaffEditForm({
-      bill_status: entry.bill_status || 'Pending',
-      bill_date: entry.bill_date || '',
-      vendor: entry.vendor || '',
-      description: entry.description || '',
-      amount: entry.amount || '',
-      due_date: entry.due_date || '',
-      manager_initials: entry.manager_initials || ''
-    });
-  } else if (activeModule === 'order-requests') {
-    setStaffEditForm({
-      date_entered: entry.date_entered || '',
-      vendor: entry.vendor || '',
-      invoice_number: entry.invoice_number || '',
-      invoice_date: entry.invoice_date || '',
-      due_date: entry.due_date || '',
-      amount: entry.amount || '',
-      notes: entry.notes || ''
-    });
-  } else if (activeModule === 'refund-requests') {
-    setStaffEditForm({
-      patient_name: entry.patient_name || '',
-      chart_number: entry.chart_number || '',
-      parent_name: entry.parent_name || '',
-      rp_address: entry.rp_address || '',
-      date_of_request: entry.date_of_request || '',
-      type: entry.type || '',
-      description: entry.description || '',
-      amount_requested: entry.amount_requested || '',
-      best_contact_method: entry.best_contact_method || ''
-    });
-  } else if (activeModule === 'it-requests') {
-    setStaffEditForm({
-      date_reported: entry.date_reported || '',
-      urgency: entry.urgency || '',
-      requester_name: entry.requester_name || '',
-      device_system: entry.device_system || '',
-      description_of_issue: entry.description_of_issue || '',
-      best_contact_method: entry.best_contact_method || '',
-      best_contact_time: entry.best_contact_time || ''
-    });
-  }
-};
-
-const updateStaffEditForm = (field, value) => {
-  setStaffEditForm(prev => ({ ...prev, [field]: value }));
-};
-
-const saveStaffEntryUpdate = async () => {
-  if (!editingStaffEntry) return;
-  setSaving(true);
-  
-  const module = ALL_MODULES.find(m => m.id === activeModule);
-  let updateData = { updated_by: currentUser.id };
-  
-  if (activeModule === 'daily-recon') {
-    updateData = { ...updateData,
-      recon_date: staffEditForm.recon_date,
-      cash: parseFloat(staffEditForm.cash) || 0,
-      credit_card: parseFloat(staffEditForm.credit_card) || 0,
-      checks_otc: parseFloat(staffEditForm.checks_otc) || 0,
-      insurance_checks: parseFloat(staffEditForm.insurance_checks) || 0,
-      care_credit: parseFloat(staffEditForm.care_credit) || 0,
-      vcc: parseFloat(staffEditForm.vcc) || 0,
-      efts: parseFloat(staffEditForm.efts) || 0,
-      notes: staffEditForm.notes
-    };
-  } else if (activeModule === 'billing-inquiry') {
-    updateData = { ...updateData,
-      patient_name: staffEditForm.patient_name,
-      chart_number: staffEditForm.chart_number,
-      parent_name: staffEditForm.parent_name,
-      date_of_request: staffEditForm.date_of_request || null,
-      inquiry_type: staffEditForm.inquiry_type,
-      description: staffEditForm.description,
-      amount_in_question: parseFloat(staffEditForm.amount_in_question) || null,
-      best_contact_method: staffEditForm.best_contact_method || null,
-      best_contact_time: staffEditForm.best_contact_time
-    };
-  } else if (activeModule === 'bills-payment') {
-    updateData = { ...updateData,
-      bill_status: staffEditForm.bill_status || 'Pending',
-      bill_date: staffEditForm.bill_date,
-      vendor: staffEditForm.vendor,
-      description: staffEditForm.description,
-      amount: parseFloat(staffEditForm.amount) || 0,
-      due_date: staffEditForm.due_date || null,
-      manager_initials: staffEditForm.manager_initials
-    };
-  } else if (activeModule === 'order-requests') {
-    updateData = { ...updateData,
-      date_entered: staffEditForm.date_entered,
-      vendor: staffEditForm.vendor,
-      invoice_number: staffEditForm.invoice_number,
-      invoice_date: staffEditForm.invoice_date || null,
-      due_date: staffEditForm.due_date || null,
-      amount: parseFloat(staffEditForm.amount) || 0,
-      notes: staffEditForm.notes
-    };
-  } else if (activeModule === 'refund-requests') {
-    updateData = { ...updateData,
-      patient_name: staffEditForm.patient_name,
-      chart_number: staffEditForm.chart_number,
-      parent_name: staffEditForm.parent_name,
-      rp_address: staffEditForm.rp_address,
-      date_of_request: staffEditForm.date_of_request,
-      type: staffEditForm.type || null,
-      description: staffEditForm.description,
-      amount_requested: parseFloat(staffEditForm.amount_requested) || 0,
-      best_contact_method: staffEditForm.best_contact_method || null
-    };
-  } else if (activeModule === 'it-requests') {
-    updateData = { ...updateData,
-      date_reported: staffEditForm.date_reported,
-      urgency: staffEditForm.urgency || null,
-      requester_name: staffEditForm.requester_name,
-      device_system: staffEditForm.device_system,
-      description_of_issue: staffEditForm.description_of_issue,
-      best_contact_method: staffEditForm.best_contact_method || null,
-      best_contact_time: staffEditForm.best_contact_time
-    };
-  }
-
-  const { error } = await supabase.from(module.table).update(updateData).eq('id', editingStaffEntry);
-
-  if (error) {
-    showMessage('error', 'Failed to update: ' + error.message);
-    setSaving(false);
-    return;
-  }
-
-  showMessage('success', '✓ Entry updated!');
-  setEditingStaffEntry(null);
-  setStaffEditForm({});
-  loadModuleData(activeModule);
-  setSaving(false);
-};
 
   const getStaffEntries = () => {
-  let data = moduleData[activeModule] || [];
-  
-  if (staffRecordSearch.trim()) {
-    const search = staffRecordSearch.toLowerCase();
-    data = data.filter(e => {
-      const searchableFields = [
-        e.recon_date, e.patient_name, e.vendor, e.chart_number,
-        e.parent_name, e.description, e.description_of_issue,
-        e.invoice_number, e.requester_name, e.device_system,
-        e.notes, e.result, e.status, e.ticket_number?.toString(),
-        e.inquiry_type, e.type, e.urgency
-      ];
-      return searchableFields.some(field => field?.toLowerCase()?.includes(search));
+    let data = moduleData[activeModule] || [];
+    if (selectedLocation) {
+      data = data.filter(e => e.locations?.name === selectedLocation);
+    }
+    if (staffRecordSearch.trim()) {
+      const search = staffRecordSearch.toLowerCase();
+      data = data.filter(e => {
+        const searchableFields = [e.recon_date, e.patient_name, e.vendor, e.chart_number, e.description, e.description_of_issue, e.status, e.ticket_number?.toString()];
+        return searchableFields.some(field => field?.toLowerCase()?.includes(search));
+      });
+    }
+    data = [...data].sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return staffSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
-  }
-  
-  data = [...data].sort((a, b) => {
-    const dateA = new Date(a.created_at);
-    const dateB = new Date(b.created_at);
-    return staffSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-  });
-  
-  return data;
-};
+    return data;
+  };
 
-const getStaffPaginatedEntries = () => {
-  const allEntries = getStaffEntries();
-  if (staffRecordsPerPage === 'all') return allEntries;
-  const startIndex = (staffCurrentPage - 1) * staffRecordsPerPage;
-  return allEntries.slice(startIndex, startIndex + staffRecordsPerPage);
-};
+  const getStaffPaginatedEntries = () => {
+    const allEntries = getStaffEntries();
+    if (staffRecordsPerPage === 'all') return allEntries;
+    const startIndex = (staffCurrentPage - 1) * staffRecordsPerPage;
+    return allEntries.slice(startIndex, startIndex + staffRecordsPerPage);
+  };
 
-const getStaffTotalPages = () => {
-  const allEntries = getStaffEntries();
-  if (staffRecordsPerPage === 'all') return 1;
-  return Math.ceil(allEntries.length / staffRecordsPerPage);
-};
-  
+  const getStaffTotalPages = () => {
+    const allEntries = getStaffEntries();
+    if (staffRecordsPerPage === 'all') return 1;
+    return Math.ceil(allEntries.length / staffRecordsPerPage);
+  };
+
   const currentColors = MODULE_COLORS[activeModule];
   const currentModule = ALL_MODULES.find(m => m.id === activeModule);
 
-  const getModuleName = (moduleId) => {
-    const mod = ALL_MODULES.find(m => m.id === moduleId);
-    return mod?.name || moduleId;
-  };
-
-// LOGIN SCREEN
-if (!currentUser) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-sm border border-white/20">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
-            <Building2 className="w-10 h-10 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">CMS - KidShine Hawaii</h1>
-          <p className="text-gray-500 text-sm mt-1">Clinic Management Portal</p>
-        </div>
-
-        {message.text && (
-          <div className={`mb-4 p-3 rounded-xl text-sm flex items-center gap-2 ${message.type === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'}`}>
-            <AlertCircle className="w-4 h-4" />
-            {message.text}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1.5 block">Email / Username</label>
-            <input
-              type="text"
-              value={loginEmail}
-              onChange={e => setLoginEmail(e.target.value)}
-              className="w-full p-3.5 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all"
-              placeholder="Enter email"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
-            <div className="flex items-center border-2 border-gray-200 rounded-xl bg-white transition-all hover:border-gray-300 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100">
-              <input
-                type={showLoginPwd ? 'text' : 'password'}
-                value={loginPassword}
-                onChange={e => setLoginPassword(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                className="w-full p-3.5 rounded-xl outline-none bg-transparent"
-                placeholder="Enter password"
-              />
-              <button type="button" onClick={() => setShowLoginPwd(!showLoginPwd)} className="px-4 text-gray-400 hover:text-gray-600">
-                {showLoginPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+  // LOGIN SCREEN
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-sm border border-white/20">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
+              <Building2 className="w-10 h-10 text-white" />
             </div>
+            <h1 className="text-2xl font-bold text-gray-800">CMS - KidShine Hawaii</h1>
+            <p className="text-gray-500 text-sm mt-1">Clinic Management Portal</p>
+            <p className="text-amber-600 text-xs mt-2 font-medium bg-amber-50 px-3 py-1 rounded-full inline-block">🎯 DEMO MODE</p>
           </div>
-          
-          {/* Remember Me Checkbox */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setRememberMe(!rememberMe)}
-              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${rememberMe ? 'bg-blue-600 border-blue-600' : 'border-gray-300 hover:border-blue-400'}`}
-            >
-              {rememberMe && (
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button> 
-{/*SEASION ONLY FOR 30DAYS*/}
-            <label 
-              onClick={() => setRememberMe(!rememberMe)}
-              className="text-sm text-gray-600 cursor-pointer select-none"
-            >
-              Stay logged in 
-            </label>
+          {message.text && (
+            <div className={`mb-4 p-3 rounded-xl text-sm flex items-center gap-2 ${message.type === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'}`}>
+              <AlertCircle className="w-4 h-4" />{message.text}
+            </div>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Email / Username</label>
+              <input type="text" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full p-3.5 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all" placeholder="admin or sarah" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
+              <div className="flex items-center border-2 border-gray-200 rounded-xl bg-white transition-all hover:border-gray-300 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100">
+                <input type={showLoginPwd ? 'text' : 'password'} value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} className="w-full p-3.5 rounded-xl outline-none bg-transparent" placeholder="admin123 or staff123" />
+                <button type="button" onClick={() => setShowLoginPwd(!showLoginPwd)} className="px-4 text-gray-400 hover:text-gray-600">
+                  {showLoginPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+            <button onClick={handleLogin} disabled={loginLoading} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-50">
+              {loginLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Login →'}
+            </button>
+            <div className="bg-gray-50 rounded-xl p-4 mt-4">
+              <p className="text-xs font-semibold text-gray-600 mb-2">Demo Accounts:</p>
+              <div className="space-y-1 text-xs text-gray-500">
+                <p><span className="font-medium">Admin:</span> admin / admin123</p>
+                <p><span className="font-medium">Finance:</span> finance / finance123</p>
+                <p><span className="font-medium">Staff:</span> sarah / staff123</p>
+              </div>
+            </div>
+            <p className="text-xs text-center text-gray-400">DEMO Version 0.26</p>
           </div>
-          
-          <button
-            onClick={handleLogin}
-            disabled={loginLoading}
-            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-50"
-          >
-            {loginLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Login →'}
-          </button>
-          
-          <p className="text-xs text-center text-gray-400">BETA Version 0.24</p>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   // LOCATION SELECTION
   if (!isAdmin && !selectedLocation && userLocations.length > 1) {
@@ -1987,34 +831,23 @@ if (!currentUser) {
           </div>
           <div className="space-y-2">
             {userLocations.map(loc => (
-              <button
-                key={loc.id}
-                onClick={() => setSelectedLocation(loc.name)}
-                className="w-full p-4 border-2 border-gray-200 rounded-xl text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:border-blue-300 flex items-center gap-3 transition-all"
-              >
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                </div>
+              <button key={loc.id} onClick={() => setSelectedLocation(loc.name)} className="w-full p-4 border-2 border-gray-200 rounded-xl text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:border-blue-300 flex items-center gap-3 transition-all">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><Building2 className="w-5 h-5 text-blue-600" /></div>
                 <span className="font-medium text-gray-700">{loc.name}</span>
               </button>
             ))}
           </div>
-          <button onClick={handleLogout} className="w-full mt-6 py-2.5 text-gray-500 hover:text-gray-700 transition-colors">
-            ← Back to Login
-          </button>
+          <button onClick={handleLogout} className="w-full mt-6 py-2.5 text-gray-500 hover:text-gray-700 transition-colors">← Back to Login</button>
         </div>
       </div>
     );
   }
 
   // MAIN DASHBOARD
-  const entries = getModuleEntries();
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 flex">
       <FileViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-    <EntryPreview entry={viewingEntry} module={currentModule} onClose={() => setViewingEntry(null)} colors={currentColors} onViewDocument={viewDocument} />
-      <FloatingChat messages={chatMessages} input={chatInput} setInput={setChatInput} onSend={askAI} loading={aiLoading} userRole={currentUser?.role} />
+      <EntryPreview entry={viewingEntry} module={currentModule} onClose={() => setViewingEntry(null)} colors={currentColors} />
 
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-40 w-72 bg-white shadow-xl transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -2025,11 +858,10 @@ if (!currentUser) {
             </div>
             <div className="text-white">
               <p className="font-semibold">{currentUser.name}</p>
-              <p className="text-sm text-white/80">
-                {isSuperAdmin ? 'Super Admin' : isAdmin ? 'Finance Admin' : selectedLocation}
-              </p>
+              <p className="text-sm text-white/80">{isSuperAdmin ? 'Super Admin' : isAdmin ? 'Finance Admin' : selectedLocation}</p>
             </div>
           </div>
+          <div className="mt-2 text-xs text-white/60 bg-white/10 px-2 py-1 rounded-lg inline-block">🎯 Demo Mode</div>
         </div>
 
         {isAdmin && (
@@ -2058,14 +890,8 @@ if (!currentUser) {
             const colors = MODULE_COLORS[m.id];
             const isActive = activeModule === m.id && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' && view !== 'settings';
             return (
-              <button
-                key={m.id}
-                onClick={() => { setActiveModule(m.id); setAdminView('records'); setView('entry'); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${isActive ? `${colors.bg} ${colors.text} ${colors.border} border-2` : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? colors.light : 'bg-gray-100'}`}>
-                  <m.icon className={`w-4 h-4 ${isActive ? colors.text : 'text-gray-500'}`} />
-                </div>
+              <button key={m.id} onClick={() => { setActiveModule(m.id); setAdminView('records'); setView('entry'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${isActive ? `${colors.bg} ${colors.text} ${colors.border} border-2` : 'text-gray-600 hover:bg-gray-50'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? colors.light : 'bg-gray-100'}`}><m.icon className={`w-4 h-4 ${isActive ? colors.text : 'text-gray-500'}`} /></div>
                 <span className="text-sm font-medium">{m.name}</span>
               </button>
             );
@@ -2077,14 +903,8 @@ if (!currentUser) {
             const colors = MODULE_COLORS[m.id];
             const isActive = activeModule === m.id && adminView !== 'users' && adminView !== 'export' && adminView !== 'settings' && view !== 'settings';
             return (
-              <button
-                key={m.id}
-                onClick={() => { setActiveModule(m.id); setAdminView('records'); setView('entry'); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${isActive ? `${colors.bg} ${colors.text} ${colors.border} border-2` : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? colors.light : 'bg-gray-100'}`}>
-                  <m.icon className={`w-4 h-4 ${isActive ? colors.text : 'text-gray-500'}`} />
-                </div>
+              <button key={m.id} onClick={() => { setActiveModule(m.id); setAdminView('records'); setView('entry'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${isActive ? `${colors.bg} ${colors.text} ${colors.border} border-2` : 'text-gray-600 hover:bg-gray-50'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? colors.light : 'bg-gray-100'}`}><m.icon className={`w-4 h-4 ${isActive ? colors.text : 'text-gray-500'}`} /></div>
                 <span className="text-sm font-medium">{m.name}</span>
               </button>
             );
@@ -2094,15 +914,11 @@ if (!currentUser) {
             <>
               <div className="border-t my-4"></div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">Management</p>
-              <button onClick={() => { setAdminView('documents'); loadDocuments(); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${adminView === 'documents' ? 'bg-purple-50 text-purple-700 border-2 border-purple-200' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${adminView === 'documents' ? 'bg-purple-100' : 'bg-gray-100'}`}><FolderOpen className="w-4 h-4" /></div>
-                <span className="text-sm font-medium">Documents</span>
-              </button>
               <button onClick={() => { setAdminView('export'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${adminView === 'export' ? 'bg-purple-50 text-purple-700 border-2 border-purple-200' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${adminView === 'export' ? 'bg-purple-100' : 'bg-gray-100'}`}><Download className="w-4 h-4" /></div>
                 <span className="text-sm font-medium">Export</span>
               </button>
-                <button onClick={() => { setAdminView('users'); loadUsers(); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${adminView === 'users' ? 'bg-purple-50 text-purple-700 border-2 border-purple-200' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <button onClick={() => { setAdminView('users'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${adminView === 'users' ? 'bg-purple-50 text-purple-700 border-2 border-purple-200' : 'text-gray-600 hover:bg-gray-50'}`}>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${adminView === 'users' ? 'bg-purple-100' : 'bg-gray-100'}`}><Users className="w-4 h-4" /></div>
                 <span className="text-sm font-medium">Users</span>
               </button>
@@ -2112,10 +928,7 @@ if (!currentUser) {
 
         {/* Bottom buttons */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
-          <button
-            onClick={() => { isAdmin ? setAdminView('settings') : setView('settings'); setSidebarOpen(false); }}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 mb-2 rounded-xl transition-all ${(isAdmin ? adminView : view) === 'settings' ? (isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700') : 'text-gray-500 hover:bg-gray-200'}`}
-          >
+          <button onClick={() => { isAdmin ? setAdminView('settings') : setView('settings'); setSidebarOpen(false); }} className={`w-full flex items-center justify-center gap-2 py-2.5 mb-2 rounded-xl transition-all ${(isAdmin ? adminView : view) === 'settings' ? (isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700') : 'text-gray-500 hover:bg-gray-200'}`}>
             <Settings className="w-4 h-4" /> Settings
           </button>
           <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all">
@@ -2132,7 +945,7 @@ if (!currentUser) {
               <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 hover:bg-gray-100 rounded-xl"><Menu className="w-5 h-5" /></button>
               <div>
                 <h1 className="font-bold text-gray-800 text-lg">
-                  {isAdmin ? (adminView === 'users' ? 'User Management' : adminView === 'export' ? 'Export Data' : adminView === 'documents' ? 'All Documents' : adminView === 'settings' ? 'Settings' : currentModule?.name) : (view === 'settings' ? 'Settings' : currentModule?.name)}
+                  {isAdmin ? (adminView === 'users' ? 'User Management' : adminView === 'export' ? 'Export Data' : adminView === 'settings' ? 'Settings' : currentModule?.name) : (view === 'settings' ? 'Settings' : currentModule?.name)}
                 </h1>
                 <p className="text-sm text-gray-500">{isAdmin ? (adminLocation === 'all' ? 'All Locations' : adminLocation) : selectedLocation}</p>
               </div>
@@ -2156,8 +969,7 @@ if (!currentUser) {
 
         {message.text && (
           <div className={`mx-4 mt-4 p-4 rounded-xl text-center font-medium shadow-sm flex items-center justify-center gap-2 ${message.type === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-700'}`}>
-            {message.type === 'error' ? <AlertCircle className="w-4 h-4" /> : null}
-            {message.text}
+            {message.type === 'error' ? <AlertCircle className="w-4 h-4" /> : null}{message.text}
           </div>
         )}
 
@@ -2165,263 +977,38 @@ if (!currentUser) {
           {/* ADMIN: User Management */}
           {isAdmin && adminView === 'users' && (
             <div className="space-y-4">
-<div className="flex flex-col gap-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-700">{users.filter(u => {
-                    if (!userSearch.trim()) return true;
-                    const search = userSearch.toLowerCase();
-                    return u.name?.toLowerCase().includes(search) || 
-                           u.username?.toLowerCase().includes(search) || 
-                           u.email?.toLowerCase().includes(search) ||
-                           u.role?.toLowerCase().includes(search);
-                  }).length} Users</h2>
-                  <button onClick={() => setShowAddUser(true)} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all">
-                    <Plus className="w-4 h-4" />Add User
-                  </button>
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={userSearch}
-                    onChange={e => setUserSearch(e.target.value)}
-                    placeholder="Search by name, username, email, or role..."
-                    className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none transition-all"
-                  />
-                  {userSearch && (
-                    <button onClick={() => setUserSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-700">{users.length} Users</h2>
+                <span className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full">Demo: Read-only</span>
               </div>
-
-              {(showAddUser || editingUser) && (
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                  <h3 className="font-semibold mb-4 text-gray-800">{editingUser ? 'Edit User' : 'Add New User'}</h3>
-<div className="grid grid-cols-2 gap-4">
-                    <InputField label="Name *" value={editingUser ? editingUser.name : newUser.name} onChange={e => editingUser ? setEditingUser({...editingUser, name: e.target.value}) : setNewUser({...newUser, name: e.target.value})} />
-                    <InputField label="Username *" value={editingUser ? (editingUser.username || '') : newUser.username} onChange={e => editingUser ? setEditingUser({...editingUser, username: e.target.value}) : setNewUser({...newUser, username: e.target.value})} placeholder="Login username" />
-                    <InputField label="Email *" value={editingUser ? editingUser.email : newUser.email} onChange={e => editingUser ? setEditingUser({...editingUser, email: e.target.value}) : setNewUser({...newUser, email: e.target.value})} />
-                    <PasswordField label={editingUser ? "New Password" : "Password *"} value={editingUser ? (editingUser.newPassword || '') : newUser.password} onChange={e => editingUser ? setEditingUser({...editingUser, newPassword: e.target.value}) : setNewUser({...newUser, password: e.target.value})} placeholder={editingUser ? "Leave blank to keep current" : ""} />
-                    <InputField label="Role" value={editingUser ? editingUser.role : newUser.role} onChange={e => editingUser ? setEditingUser({...editingUser, role: e.target.value}) : setNewUser({...newUser, role: e.target.value})} options={isSuperAdmin ? ['staff', 'finance_admin', 'super_admin'] : ['staff', 'finance_admin']} />
-                  </div>
-                  {((editingUser ? editingUser.role : newUser.role) === 'staff') && (
-                    <div className="mt-4">
-                      <label className="text-xs font-medium text-gray-600 mb-2 block">Assigned Locations</label>
-                      <div className="flex flex-wrap gap-2">
-                        {locations.map(loc => (
-                          <button
-                            key={loc.id}
-                            onClick={() => toggleUserLocation(loc.id, !!editingUser)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(editingUser ? editingUser.locationIds : newUser.locations)?.includes(loc.id) ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                          >
-                            {loc.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex gap-2 mt-5">
-                    <button onClick={editingUser ? updateUser : addUser} className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all">
-                      {editingUser ? 'Update' : 'Add'} User
-                    </button>
-                    <button onClick={() => { setShowAddUser(false); setEditingUser(null); }} className="px-6 py-3 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 transition-all">Cancel</button>
-                  </div>
-                </div>
-              )}
-
-<div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-  <div className="divide-y">
-    {users.filter(u => {
-                    if (!userSearch.trim()) return true;
-                    const search = userSearch.toLowerCase();
-                    return u.name?.toLowerCase().includes(search) || 
-                           u.username?.toLowerCase().includes(search) || 
-                           u.email?.toLowerCase().includes(search) ||
-                           u.role?.toLowerCase().includes(search);
-                  }).map(u => (
-      <div key={u.id}>
-        <div className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-semibold ${u.role === 'super_admin' ? 'bg-gradient-to-br from-rose-500 to-pink-500' : u.role === 'finance_admin' ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
-              {u.name.charAt(0)}
-            </div>
-            <div>
-              <p className="font-medium text-gray-800">{u.name}</p>
-              <p className="text-sm text-gray-500">{u.username && <span className="text-blue-600">@{u.username} • </span>}{u.email} • <span className="capitalize">{u.role?.replace('_', ' ')}</span></p>
-              {u.role === 'staff' && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {u.locations?.map(loc => (
-                    <span key={loc.id} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">{loc.name}</span>
-                  ))}
-                </div>
-              )}
-              {(u.role === 'finance_admin' || u.role === 'super_admin') && (
-                <span className="text-xs text-purple-600 font-medium">All locations access</span>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => {
-                setViewingUserSessions(viewingUserSessions === u.id ? null : u.id);
-                if (viewingUserSessions !== u.id) loadUserSessions(u.id);
-              }}
-              className={`p-2 rounded-lg transition-all ${viewingUserSessions === u.id ? 'text-cyan-600 bg-cyan-50' : 'text-gray-400 hover:text-cyan-600 hover:bg-cyan-50'}`}
-              title="View login sessions"
-            >
-              <Monitor className="w-4 h-4" />
-            </button>
-            {u.id !== currentUser.id && (
-              <>
-                <button
-                  onClick={() => setEditingUser({ ...u, username: u.username || '', locationIds: u.locations?.map(l => l.id) || [] })}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                  title="Edit user"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
-                <button onClick={() => deleteUser(u.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete user">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-        
-        {viewingUserSessions === u.id && (
-          <div className="px-4 pb-4">
-            <div className="bg-cyan-50 rounded-xl p-4 border border-cyan-200">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-cyan-800 flex items-center gap-2">
-                  <Monitor className="w-4 h-4" /> Login Sessions for {u.name}
-                </h4>
-                <button onClick={() => setViewingUserSessions(null)} className="text-cyan-600 hover:text-cyan-800">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              {loadingUserSessions ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-cyan-600" />
-                </div>
-              ) : userSessionsData.length === 0 ? (
-                <p className="text-sm text-cyan-700 text-center py-4">No login sessions recorded</p>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {userSessionsData.map((session, idx) => (
-                    <div key={session.id} className={`p-3 rounded-lg ${idx === 0 ? 'bg-emerald-100 border border-emerald-300' : 'bg-white border border-cyan-100'}`}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">
-                            {new Date(session.login_at).toLocaleString()}
-                            {idx === 0 && <span className="ml-2 text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full">Latest</span>}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">{session.location_info || 'Unknown device'}</p>
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div className="divide-y">
+                  {users.map(u => (
+                    <div key={u.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-semibold ${u.role === 'super_admin' ? 'bg-gradient-to-br from-rose-500 to-pink-500' : u.role === 'finance_admin' ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
+                          {u.name.charAt(0)}
                         </div>
-                        {session.ip_address && (
-                          <span className="text-xs text-gray-400 font-mono">{session.ip_address}</span>
-                        )}
+                        <div>
+                          <p className="font-medium text-gray-800">{u.name}</p>
+                          <p className="text-sm text-gray-500">{u.username && <span className="text-blue-600">@{u.username} • </span>}{u.email} • <span className="capitalize">{u.role?.replace('_', ' ')}</span></p>
+                          {u.role === 'staff' && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {u.locations?.slice(0, 3).map(loc => (
+                                <span key={loc.id} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">{loc.name}</span>
+                              ))}
+                              {u.locations?.length > 3 && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs">+{u.locations.length - 3} more</span>}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    ))}
-      </div>
-    </div>
+              </div>
             </div>
           )}
 
-{/* ADMIN: Documents */}
-{isAdmin && adminView === 'documents' && (
-  <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center">
-          <FolderOpen className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h2 className="font-semibold text-gray-800">All Uploaded Documents</h2>
-          <p className="text-sm text-gray-500">{documents.filter(doc => {
-            if (!docSearch) return true;
-            const search = docSearch.toLowerCase();
-            return doc.file_name?.toLowerCase().includes(search) || doc.record_type?.toLowerCase().includes(search) || doc.category?.toLowerCase().includes(search) || doc.uploader?.name?.toLowerCase().includes(search);
-          }).length} files</p>
-        </div>
-      </div>
-      <div className="relative w-64">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          value={docSearch}
-          onChange={e => setDocSearch(e.target.value)}
-          placeholder="Search documents..."
-          className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
-        />
-      </div>
-    </div>
-    {documents.filter(doc => {
-      if (!docSearch) return true;
-      const search = docSearch.toLowerCase();
-      return doc.file_name?.toLowerCase().includes(search) || doc.record_type?.toLowerCase().includes(search) || doc.category?.toLowerCase().includes(search) || doc.uploader?.name?.toLowerCase().includes(search);
-    }).length === 0 ? (
-      <p className="text-gray-500 text-center py-8">{docSearch ? 'No documents match your search' : 'No documents uploaded yet'}</p>
-    ) : (
-      <div className="space-y-2">
-        {documents.filter(doc => {
-          if (!docSearch) return true;
-          const search = docSearch.toLowerCase();
-          return doc.file_name?.toLowerCase().includes(search) || doc.record_type?.toLowerCase().includes(search) || doc.category?.toLowerCase().includes(search) || doc.uploader?.name?.toLowerCase().includes(search);
-        }).map(doc => (
-          <div key={doc.id} className="p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <File className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-gray-800 truncate">{doc.file_name}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
-                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md font-medium">{getModuleName(doc.record_type)}</span>
-                    <span>•</span>
-                    <span>ID: {doc.record_id?.slice(0, 8)}...</span>
-                    <span>•</span>
-                    <span>{doc.category}</span>
-                    <span>•</span>
-                    <span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>
-                  </div>
-                  {doc.uploader && <p className="text-xs text-gray-400 mt-1">Uploaded by: {doc.uploader.name}</p>}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <span className="text-sm text-gray-500">{(doc.file_size / 1024).toFixed(1)} KB</span>
-                <button
-                  onClick={() => viewDocument(doc)}
-                  className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Preview"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => downloadDocument(doc)}
-                  className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
-                  title="Download"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
           {/* ADMIN: Export */}
           {isAdmin && adminView === 'export' && (
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
@@ -2461,530 +1048,223 @@ if (!currentUser) {
             </div>
           )}
 
-{/* Settings */}
-{((isAdmin && adminView === 'settings') || (!isAdmin && view === 'settings')) && (
-  <div className="space-y-6">
-    {/* Last Login Info */}
-    {lastLogin && (
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow-lg p-6 border border-blue-100">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-            <Shield className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-800">Last Login</h3>
-            <p className="text-sm text-gray-500">
-              {new Date(lastLogin.login_at).toLocaleString()} • {lastLogin.location_info}
-              {lastLogin.ip_address && <span className="text-gray-400"> • IP: {lastLogin.ip_address}</span>}
-            </p>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Name Change Section */}
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-      <div className="flex items-center gap-3 mb-6">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
-          <User className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h2 className="font-semibold text-gray-800">Change Display Name</h2>
-          <p className="text-sm text-gray-500">Update how your name appears in the system</p>
-        </div>
-      </div>
-      <div className="space-y-4 max-w-sm">
-        <InputField label="Display Name" value={nameForm} onChange={e => setNameForm(e.target.value)} placeholder="Enter your name" />
-        <button onClick={changeName} className={`w-full py-4 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
-          Update Name
-        </button>
-      </div>
-    </div>
-    
-    {/* Password Change Section */}
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-      <div className="flex items-center gap-3 mb-6">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
-          <Lock className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h2 className="font-semibold text-gray-800">Change Password</h2>
-          <p className="text-sm text-gray-500">Update your account password</p>
-        </div>
-      </div>
-      <div className="space-y-4 max-w-sm">
-        <PasswordField label="Current Password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} placeholder="Enter current password" />
-        <PasswordField label="New Password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} placeholder="Enter new password" />
-        <PasswordField label="Confirm New Password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} placeholder="Confirm new password" />
-        <button onClick={changePassword} className={`w-full py-4 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
-          Update Password
-        </button>
-      </div>
-    </div>
-
-    {/* Login History (Admin Only) */}
-    {isAdmin && loginHistory.length > 0 && (
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center">
-            <FileText className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-800">Login History</h2>
-            <p className="text-sm text-gray-500">Your recent login activity</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          {loginHistory.map((login, i) => (
-            <div key={login.id} className={`p-3 rounded-xl ${i === 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">
-                    {new Date(login.login_at).toLocaleString()}
-                    {i === 0 && <span className="ml-2 text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full">Current</span>}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">{login.location_info}</p>
+          {/* Settings */}
+          {((isAdmin && adminView === 'settings') || (!isAdmin && view === 'settings')) && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
+                    <User className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-800">Account Settings</h2>
+                    <p className="text-sm text-gray-500">Demo mode - changes not persisted</p>
+                  </div>
                 </div>
-                {login.ip_address && (
-                  <span className="text-xs text-gray-400 font-mono">{login.ip_address}</span>
+                <div className="space-y-4 max-w-sm">
+                  <InputField label="Display Name" value={nameForm} onChange={e => setNameForm(e.target.value)} placeholder="Enter your name" />
+                  <button onClick={() => showMessage('success', '✓ Name updated! (Demo)')} className={`w-full py-4 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
+                    Update Name
+                  </button>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-gray-600">Demo Session Active</span>
+                  </div>
+                  <button onClick={handleLogout} className="text-sm text-red-600 font-medium hover:text-red-700 hover:underline">
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Records View - Admin */}
+          {isAdmin && adminView === 'records' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input type="text" value={recordSearch} onChange={e => { setRecordSearch(e.target.value); setCurrentPage(1); }} placeholder="Search records..." className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none transition-all" />
+                      {recordSearch && (
+                        <button onClick={() => setRecordSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 font-medium">Sort:</span>
+                    <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white">
+                      <option value="desc">Newest First</option>
+                      <option value="asc">Oldest First</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 font-medium">Show:</span>
+                    <select value={recordsPerPage} onChange={e => { setRecordsPerPage(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setCurrentPage(1); }} className="px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white">
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value="all">All</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-sm text-gray-500">Showing <span className="font-semibold text-gray-700">{getPaginatedEntries().length}</span> of <span className="font-semibold text-gray-700">{getModuleEntries().length}</span> records</p>
+                  <span className={`text-sm font-medium px-3 py-1 rounded-lg ${currentColors?.light} ${currentColors?.text}`}>{currentModule?.name}</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                {getModuleEntries().length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><FileText className="w-8 h-8 text-gray-400" /></div>
+                    <p className="text-gray-500">{recordSearch ? 'No records match your search' : 'No entries yet'}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {getPaginatedEntries().map(e => {
+                      if (activeModule === 'daily-recon') {
+                        const isEditing = editingRecon === e.id;
+                        const form = reconForm[e.id] || {};
+                        return (
+                          <div key={e.id} className={`p-4 rounded-xl border-2 ${e.status === 'Accounted' ? 'border-emerald-200 bg-emerald-50' : e.status === 'Rejected' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'} hover:shadow-md transition-all`}>
+                            <div className="flex justify-between items-start gap-4 mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-semibold text-gray-800">{e.recon_date}</p>
+                                  <StatusBadge status={e.status || 'Pending'} />
+                                </div>
+                                <p className="text-sm text-gray-600 mt-1">{e.locations?.name} • {e.creator?.name || 'Unknown'} • {new Date(e.created_at).toLocaleDateString()}</p>
+                              </div>
+                              {!isEditing && (
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => setViewingEntry(e)} className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
+                                  <button onClick={() => startEditingRecon(e)} className="px-3 py-1.5 text-sm font-medium text-purple-600 hover:bg-purple-100 rounded-lg transition-colors flex items-center gap-1"><Edit3 className="w-4 h-4" /> Review</button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="bg-white rounded-xl p-4 mb-3 border border-gray-200">
+                              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-500" /> Staff Daily Cash Can</h4>
+                              <div className="grid grid-cols-4 gap-3 text-sm">
+                                <div><span className="text-gray-500">Cash:</span> <span className="font-medium">${Number(e.cash || 0).toFixed(2)}</span></div>
+                                <div><span className="text-gray-500">Credit Card:</span> <span className="font-medium">${Number(e.credit_card || 0).toFixed(2)}</span></div>
+                                <div><span className="text-gray-500">Checks OTC:</span> <span className="font-medium">${Number(e.checks_otc || 0).toFixed(2)}</span></div>
+                                <div><span className="text-gray-500">Insurance:</span> <span className="font-medium">${Number(e.insurance_checks || 0).toFixed(2)}</span></div>
+                                <div><span className="text-gray-500">Care Credit:</span> <span className="font-medium">${Number(e.care_credit || 0).toFixed(2)}</span></div>
+                                <div><span className="text-gray-500">VCC:</span> <span className="font-medium">${Number(e.vcc || 0).toFixed(2)}</span></div>
+                                <div><span className="text-gray-500">EFTs:</span> <span className="font-medium">${Number(e.efts || 0).toFixed(2)}</span></div>
+                                <div><span className="text-gray-500 font-semibold">Total:</span> <span className="font-bold text-emerald-600">${Number(e.total_collected || 0).toFixed(2)}</span></div>
+                              </div>
+                            </div>
+                            {isEditing ? (
+                              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                                <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2"><Building2 className="w-4 h-4" /> Bank Deposit (Admin Entry)</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                  <div>
+                                    <label className="text-xs text-gray-600 mb-1 block">Cash</label>
+                                    <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white"><span className="pl-2 text-gray-400">$</span><input type="text" value={form.deposit_cash || ''} onChange={ev => updateReconForm(e.id, 'deposit_cash', ev.target.value)} className="w-full p-2 outline-none rounded-lg" /></div>
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-gray-600 mb-1 block">Credit Card</label>
+                                    <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white"><span className="pl-2 text-gray-400">$</span><input type="text" value={form.deposit_credit_card || ''} onChange={ev => updateReconForm(e.id, 'deposit_credit_card', ev.target.value)} className="w-full p-2 outline-none rounded-lg" /></div>
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-gray-600 mb-1 block">Checks</label>
+                                    <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white"><span className="pl-2 text-gray-400">$</span><input type="text" value={form.deposit_checks || ''} onChange={ev => updateReconForm(e.id, 'deposit_checks', ev.target.value)} className="w-full p-2 outline-none rounded-lg" /></div>
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-gray-600 mb-1 block">Status</label>
+                                    <select value={form.status || 'Pending'} onChange={ev => updateReconForm(e.id, 'status', ev.target.value)} className="w-full p-2 border-2 border-gray-200 rounded-lg bg-white">
+                                      {RECON_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button onClick={() => updateDailyRecon(e.id)} className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-medium hover:shadow-lg transition-all">Submit Review</button>
+                                  <button onClick={() => setEditingRecon(null)} className="px-4 py-2.5 bg-gray-200 rounded-lg font-medium hover:bg-gray-300 transition-all">Cancel</button>
+                                </div>
+                              </div>
+                            ) : (e.deposit_cash > 0 || e.status === 'Accounted') && (
+                              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                                <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2"><Building2 className="w-4 h-4" /> Bank Deposit (Reviewed)</h4>
+                                <div className="grid grid-cols-4 gap-3 text-sm">
+                                  <div><span className="text-gray-500">Cash:</span> <span className="font-medium">${Number(e.deposit_cash || 0).toFixed(2)}</span></div>
+                                  <div><span className="text-gray-500">Credit Card:</span> <span className="font-medium">${Number(e.deposit_credit_card || 0).toFixed(2)}</span></div>
+                                  <div><span className="text-gray-500">Checks:</span> <span className="font-medium">${Number(e.deposit_checks || 0).toFixed(2)}</span></div>
+                                  <div><span className="text-gray-500 font-semibold">Total:</span> <span className="font-bold text-blue-600">${Number(e.total_deposit || 0).toFixed(2)}</span></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={e.id} className={`p-4 rounded-xl border-2 ${currentColors?.border} ${currentColors?.bg} hover:shadow-md transition-all`}>
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-gray-800">{e.ticket_number ? `IT-${e.ticket_number}` : e.patient_name || e.vendor || e.created_at?.split('T')[0]}</p>
+                                <StatusBadge status={e.status} />
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">{e.locations?.name} • {e.creator?.name || 'Unknown'} • {new Date(e.created_at).toLocaleDateString()}</p>
+                              {e.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{e.description}</p>}
+                              {e.description_of_issue && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{e.description_of_issue}</p>}
+                              {(e.amount || e.amount_requested || e.amount_in_question) && (
+                                <p className="text-lg font-bold text-emerald-600 mt-2">${Number(e.amount || e.amount_requested || e.amount_in_question || 0).toFixed(2)}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => setViewingEntry(e)} className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
+                              {activeModule === 'it-requests' && (
+                                <button onClick={() => setEditingStatus(editingStatus === e.id ? null : e.id)} className="px-3 py-1.5 text-sm font-medium text-purple-600 hover:bg-purple-100 rounded-lg transition-colors flex items-center gap-1"><Edit3 className="w-4 h-4" /> Update</button>
+                              )}
+                            </div>
+                          </div>
+                          {activeModule === 'it-requests' && editingStatus === e.id && (
+                            <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                              <select defaultValue={e.status} id={`status-${e.id}`} className="w-full p-2 border-2 rounded-lg text-sm">
+                                {IT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                              <input type="text" id={`notes-${e.id}`} placeholder="Resolution notes" className="w-full p-2 border-2 rounded-lg text-sm" />
+                              <div className="flex gap-2">
+                                <button onClick={() => updateEntryStatus('it-requests', e.id, document.getElementById(`status-${e.id}`).value, { resolution_notes: document.getElementById(`notes-${e.id}`).value })} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium">Save</button>
+                                <button onClick={() => setEditingStatus(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancel</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {getModuleEntries().length > 0 && recordsPerPage !== 'all' && getTotalPages() > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">Page {currentPage} of {getTotalPages()}</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">First</button>
+                      <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">Prev</button>
+                      <span className="px-3 py-2 text-sm font-semibold text-purple-600 bg-purple-50 rounded-lg">{currentPage}</span>
+                      <button onClick={() => setCurrentPage(p => Math.min(p + 1, getTotalPages()))} disabled={currentPage === getTotalPages()} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">Next</button>
+                      <button onClick={() => setCurrentPage(getTotalPages())} disabled={currentPage === getTotalPages()} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">Last</button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {/* Session Info */}
-    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-          <span className="text-sm text-gray-600">Session Active</span>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-red-600 font-medium hover:text-red-700 hover:underline"
-        >
-          Sign out of all devices
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Records View - Admin */}
-{isAdmin && adminView === 'records' && (
-  <div className="space-y-4">
-    {/* Filters and Controls */}
-    <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
-      <div className="flex flex-wrap items-center gap-4">
-        {/* Search */}
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={recordSearch}
-              onChange={e => { setRecordSearch(e.target.value); setCurrentPage(1); }}
-              placeholder="Search records..."
-              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none transition-all"
-            />
-            {recordSearch && (
-              <button onClick={() => setRecordSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {/* Date Sort */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 font-medium">Sort:</span>
-          <select
-            value={sortOrder}
-            onChange={e => setSortOrder(e.target.value)}
-            className="px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white"
-          >
-            <option value="desc">Newest First</option>
-            <option value="asc">Oldest First</option>
-          </select>
-        </div>
-        
-        {/* Records Per Page */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 font-medium">Show:</span>
-          <select
-            value={recordsPerPage}
-            onChange={e => { setRecordsPerPage(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setCurrentPage(1); }}
-            className="px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white"
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value="all">All</option>
-          </select>
-        </div>
-      </div>
-      
-      {/* Results Summary */}
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-        <p className="text-sm text-gray-500">
-          Showing <span className="font-semibold text-gray-700">{getPaginatedEntries().length}</span> of <span className="font-semibold text-gray-700">{getModuleEntries().length}</span> records
-          {recordSearch && <span className="text-blue-600"> (filtered)</span>}
-        </p>
-        <span className={`text-sm font-medium px-3 py-1 rounded-lg ${currentColors?.light} ${currentColors?.text}`}>
-          {currentModule?.name}
-        </span>
-      </div>
-    </div>
-
-    {/* Records List */}
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
-      ) : getModuleEntries().length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="text-gray-500">{recordSearch ? 'No records match your search' : 'No entries yet'}</p>
-          {recordSearch && (
-            <button onClick={() => setRecordSearch('')} className="mt-2 text-blue-600 text-sm font-medium hover:underline">Clear search</button>
           )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {getPaginatedEntries().map(e => {
-            const docKey = `${activeModule}-${e.id}`;
-            const docs = entryDocuments[docKey] || [];
-            
-            if (!entryDocuments[docKey]) {
-              loadEntryDocuments(activeModule, e.id);
-            }
-            
-            // Special handling for Daily Recon
-            if (activeModule === 'daily-recon') {
-              const isEditing = editingRecon === e.id;
-              const form = reconForm[e.id] || {};
-              
-              return (
-                <div key={e.id} className={`p-4 rounded-xl border-2 ${e.status === 'Accounted' ? 'border-emerald-200 bg-emerald-50' : e.status === 'Rejected' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'} hover:shadow-md transition-all`}>
-                  <div className="flex justify-between items-start gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-800">{e.recon_date}</p>
-                        <StatusBadge status={e.status || 'Pending'} />
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {e.locations?.name} • {e.creator?.name || 'Unknown'} • {new Date(e.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-{!isEditing && (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setViewingEntry(e)} className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Preview">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => startEditingRecon(e)}
-                          className="px-3 py-1.5 text-sm font-medium text-purple-600 hover:bg-purple-100 rounded-lg transition-colors flex items-center gap-1"
-                        >
-                          <Edit3 className="w-4 h-4" /> Review
-                        </button>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Staff's Cash Can Data (Read Only) */}
-                  <div className="bg-white rounded-xl p-4 mb-3 border border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-emerald-500" /> Staff Daily Cash Can
-                    </h4>
-                    <div className="grid grid-cols-4 gap-3 text-sm">
-                      <div><span className="text-gray-500">Cash:</span> <span className="font-medium">${Number(e.cash || 0).toFixed(2)}</span></div>
-                      <div><span className="text-gray-500">Credit Card:</span> <span className="font-medium">${Number(e.credit_card || 0).toFixed(2)}</span></div>
-                      <div><span className="text-gray-500">Checks OTC:</span> <span className="font-medium">${Number(e.checks_otc || 0).toFixed(2)}</span></div>
-                      <div><span className="text-gray-500">Insurance:</span> <span className="font-medium">${Number(e.insurance_checks || 0).toFixed(2)}</span></div>
-                      <div><span className="text-gray-500">Care Credit:</span> <span className="font-medium">${Number(e.care_credit || 0).toFixed(2)}</span></div>
-                      <div><span className="text-gray-500">VCC:</span> <span className="font-medium">${Number(e.vcc || 0).toFixed(2)}</span></div>
-                      <div><span className="text-gray-500">EFTs:</span> <span className="font-medium">${Number(e.efts || 0).toFixed(2)}</span></div>
-                      <div><span className="text-gray-500 font-semibold">Total:</span> <span className="font-bold text-emerald-600">${Number(e.total_collected || 0).toFixed(2)}</span></div>
-                    </div>
-                    {e.notes && <p className="mt-2 text-sm text-gray-600"><span className="text-gray-500">Notes:</span> {e.notes}</p>}
-                  </div>
-
-                  {/* Bank Deposit Section (Editable by Admin) */}
-                  {isEditing ? (
-                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                      <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
-                        <Building2 className="w-4 h-4" /> Bank Deposit (Admin Entry)
-                      </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">Cash</label>
-                          <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white">
-                            <span className="pl-2 text-gray-400">$</span>
-                            <input type="text" value={form.deposit_cash || ''} onChange={ev => updateReconForm(e.id, 'deposit_cash', ev.target.value)} className="w-full p-2 outline-none rounded-lg" inputMode="decimal" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">Credit Card</label>
-                          <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white">
-                            <span className="pl-2 text-gray-400">$</span>
-                            <input type="text" value={form.deposit_credit_card || ''} onChange={ev => updateReconForm(e.id, 'deposit_credit_card', ev.target.value)} className="w-full p-2 outline-none rounded-lg" inputMode="decimal" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">Checks</label>
-                          <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white">
-                            <span className="pl-2 text-gray-400">$</span>
-                            <input type="text" value={form.deposit_checks || ''} onChange={ev => updateReconForm(e.id, 'deposit_checks', ev.target.value)} className="w-full p-2 outline-none rounded-lg" inputMode="decimal" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">Insurance</label>
-                          <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white">
-                            <span className="pl-2 text-gray-400">$</span>
-                            <input type="text" value={form.deposit_insurance || ''} onChange={ev => updateReconForm(e.id, 'deposit_insurance', ev.target.value)} className="w-full p-2 outline-none rounded-lg" inputMode="decimal" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">Care Credit</label>
-                          <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white">
-                            <span className="pl-2 text-gray-400">$</span>
-                            <input type="text" value={form.deposit_care_credit || ''} onChange={ev => updateReconForm(e.id, 'deposit_care_credit', ev.target.value)} className="w-full p-2 outline-none rounded-lg" inputMode="decimal" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">VCC</label>
-                          <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white">
-                            <span className="pl-2 text-gray-400">$</span>
-                            <input type="text" value={form.deposit_vcc || ''} onChange={ev => updateReconForm(e.id, 'deposit_vcc', ev.target.value)} className="w-full p-2 outline-none rounded-lg" inputMode="decimal" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">EFTs</label>
-                          <div className="flex items-center border-2 border-gray-200 rounded-lg bg-white">
-                            <span className="pl-2 text-gray-400">$</span>
-                            <input type="text" value={form.deposit_efts || ''} onChange={ev => updateReconForm(e.id, 'deposit_efts', ev.target.value)} className="w-full p-2 outline-none rounded-lg" inputMode="decimal" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600 mb-1 block">Status</label>
-                          <select value={form.status || 'Pending'} onChange={ev => updateReconForm(e.id, 'status', ev.target.value)} className="w-full p-2 border-2 border-gray-200 rounded-lg bg-white">
-                            {RECON_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => updateDailyRecon(e.id)} className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-medium hover:shadow-lg transition-all">
-                          Submit Review
-                        </button>
-                        <button onClick={() => { setEditingRecon(null); }} className="px-4 py-2.5 bg-gray-200 rounded-lg font-medium hover:bg-gray-300 transition-all">
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    // Show existing bank deposit data if any
-                    (e.deposit_cash > 0 || e.deposit_credit_card > 0 || e.deposit_checks > 0 || e.status === 'Accounted') && (
-                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                        <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
-                          <Building2 className="w-4 h-4" /> Bank Deposit (Reviewed)
-                        </h4>
-                        <div className="grid grid-cols-4 gap-3 text-sm">
-                          <div><span className="text-gray-500">Cash:</span> <span className="font-medium">${Number(e.deposit_cash || 0).toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">Credit Card:</span> <span className="font-medium">${Number(e.deposit_credit_card || 0).toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">Checks:</span> <span className="font-medium">${Number(e.deposit_checks || 0).toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">Insurance:</span> <span className="font-medium">${Number(e.deposit_insurance || 0).toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">Care Credit:</span> <span className="font-medium">${Number(e.deposit_care_credit || 0).toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">VCC:</span> <span className="font-medium">${Number(e.deposit_vcc || 0).toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">EFTs:</span> <span className="font-medium">${Number(e.deposit_efts || 0).toFixed(2)}</span></div>
-                          <div><span className="text-gray-500 font-semibold">Total:</span> <span className="font-bold text-blue-600">${Number(e.total_deposit || 0).toFixed(2)}</span></div>
-                        </div>
-                      </div>
-                    )
-                  )}
-
-                  {/* Documents */}
-                  {docs.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {docs.map(doc => (
-                        <div key={doc.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border text-xs">
-                          <File className="w-3 h-3 text-gray-400" />
-                          <span className="text-gray-600 max-w-24 truncate">{doc.file_name}</span>
-                          <button onClick={() => viewDocument(doc)} className="p-0.5 text-blue-500 hover:bg-blue-100 rounded" title="Preview">
-                            <Eye className="w-3 h-3" />
-                          </button>
-                          <button onClick={() => downloadDocument(doc)} className="p-0.5 text-emerald-500 hover:bg-emerald-100 rounded" title="Download">
-                            <Download className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            
-            // Default handling for other modules
-            return (
-              <div key={e.id} className={`p-4 rounded-xl border-2 ${currentColors?.border} ${currentColors?.bg} hover:shadow-md transition-all`}>
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-gray-800">
-                        {e.ticket_number ? `IT-${e.ticket_number}` : e.patient_name || e.vendor || e.recon_date || e.created_at?.split('T')[0]}
-                      </p>
-                      <StatusBadge status={e.status} />
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {e.locations?.name} • {e.creator?.name || 'Unknown'} • {new Date(e.created_at).toLocaleDateString()}
-                    </p>
-                    {e.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{e.description}</p>}
-                    {e.description_of_issue && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{e.description_of_issue}</p>}
-                    {(e.amount || e.amount_requested || e.amount_in_question) && (
-                      <p className="text-lg font-bold text-emerald-600 mt-2">
-                        ${Number(e.amount || e.amount_requested || e.amount_in_question || 0).toFixed(2)}
-                      </p>
-                    )}
-                    
-                    {/* Documents for this entry */}
-                    {docs.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {docs.map(doc => (
-                          <div key={doc.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border text-xs">
-                            <File className="w-3 h-3 text-gray-400" />
-                            <span className="text-gray-600 max-w-24 truncate">{doc.file_name}</span>
-                            <button onClick={() => viewDocument(doc)} className="p-0.5 text-blue-500 hover:bg-blue-100 rounded" title="Preview">
-                              <Eye className="w-3 h-3" />
-                            </button>
-                            <button onClick={() => downloadDocument(doc)} className="p-0.5 text-emerald-500 hover:bg-emerald-100 rounded" title="Download">
-                              <Download className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-{activeModule !== 'it-requests' && (
-                    <button onClick={() => setViewingEntry(e)} className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Preview">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  {activeModule === 'it-requests' && (
-                    <div>
-                      {editingStatus === e.id ? (
-                        <div className="space-y-2 w-44">
-                          <select defaultValue={e.status} id={`status-${e.id}`} className="w-full p-2 border-2 rounded-lg text-sm">
-                            {IT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <input type="text" id={`notes-${e.id}`} placeholder="Resolution notes" className="w-full p-2 border-2 rounded-lg text-sm" />
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => updateEntryStatus('it-requests', e.id, document.getElementById(`status-${e.id}`).value, { resolution_notes: document.getElementById(`notes-${e.id}`).value })}
-                              className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-xs font-medium"
-                            >
-                              Save
-                            </button>
-                            <button onClick={() => setEditingStatus(null)} className="px-3 py-2 bg-gray-200 rounded-lg text-xs">Cancel</button>
-                          </div>
-                        </div>
-) : (
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => setViewingEntry(e)} className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Preview">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setEditingStatus(e.id)} className="text-xs text-purple-600 flex items-center gap-1 font-medium hover:underline">
-                            <Edit3 className="w-3 h-3" />Update
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      
-      {/* Pagination Controls */}
-      {!loading && getModuleEntries().length > 0 && recordsPerPage !== 'all' && getTotalPages() > 1 && (
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-          <p className="text-sm text-gray-500">
-            Page {currentPage} of {getTotalPages()}
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-              className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              First
-            </button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              Previous
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, getTotalPages()) }, (_, i) => {
-                let pageNum;
-                if (getTotalPages() <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= getTotalPages() - 2) {
-                  pageNum = getTotalPages() - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`w-10 h-10 text-sm font-medium rounded-lg transition-all ${currentPage === pageNum ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'}`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, getTotalPages()))}
-              disabled={currentPage === getTotalPages()}
-              className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              Next
-            </button>
-            <button
-              onClick={() => setCurrentPage(getTotalPages())}
-              disabled={currentPage === getTotalPages()}
-              className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              Last
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-)}
           {/* Entry Form - Staff */}
           {!isAdmin && view === 'entry' && (
             <div className="space-y-4">
               {activeModule === 'daily-recon' && (
                 <>
                   <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
-                    <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-emerald-500" />Daily Cash Can
-                    </h2>
+                    <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2"><DollarSign className="w-5 h-5 text-emerald-500" />Daily Cash Can</h2>
                     <div className="grid grid-cols-2 gap-4">
                       <InputField label="Date" type="date" value={forms['daily-recon'].recon_date} onChange={e => updateForm('daily-recon', 'recon_date', e.target.value)} />
                       <InputField label="Cash" prefix="$" value={forms['daily-recon'].cash} onChange={e => updateForm('daily-recon', 'cash', e.target.value)} />
@@ -2995,434 +1275,175 @@ if (!currentUser) {
                       <InputField label="VCC" prefix="$" value={forms['daily-recon'].vcc} onChange={e => updateForm('daily-recon', 'vcc', e.target.value)} />
                       <InputField label="EFTs" prefix="$" value={forms['daily-recon'].efts} onChange={e => updateForm('daily-recon', 'efts', e.target.value)} />
                     </div>
-            <div className="mt-4">
-  <InputField label="Notes" value={forms['daily-recon'].notes} onChange={e => updateForm('daily-recon', 'notes', e.target.value)} />
-</div>
+                    <div className="mt-4"><InputField label="Notes" value={forms['daily-recon'].notes} onChange={e => updateForm('daily-recon', 'notes', e.target.value)} /></div>
                   </div>
-
-<div className="bg-white rounded-2xl shadow-lg p-6">
-  <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2">
-    <File className="w-5 h-5 text-amber-500" />Documents
-  </h2>
-  <FileUpload label="Upload Documents (EOD Sheets, Bank Receipts, etc.)" files={files['daily-recon'].documents} onFilesChange={f => updateFiles('daily-recon', 'documents', f)} onViewFile={setViewingFile} />
-</div>
+                  <div className="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2"><File className="w-5 h-5 text-amber-500" />Documents</h2>
+                    <FileUpload label="Upload Documents (EOD Sheets, Bank Receipts, etc.)" files={files['daily-recon'].documents} onFilesChange={f => updateFiles('daily-recon', 'documents', f)} onViewFile={setViewingFile} />
+                  </div>
                 </>
               )}
 
               {activeModule === 'it-requests' && (
-                <>
-                  <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
-                    <h2 className="font-semibold mb-2 text-gray-800">IT Request</h2>
-                    <p className="text-sm text-gray-500 mb-4">Ticket # will be auto-generated</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <InputField label="Date Reported" type="date" value={forms['it-requests'].date_reported} onChange={e => updateForm('it-requests', 'date_reported', e.target.value)} />
-                      <InputField label="Urgency Level" value={forms['it-requests'].urgency} onChange={e => updateForm('it-requests', 'urgency', e.target.value)} options={['Low', 'Medium', 'High', 'Critical']} />
-                      <InputField label="Requester Name" value={forms['it-requests'].requester_name} onChange={e => updateForm('it-requests', 'requester_name', e.target.value)} />
-                      <InputField label="Device / System" value={forms['it-requests'].device_system} onChange={e => updateForm('it-requests', 'device_system', e.target.value)} />
-                      <InputField label="Contact Method" value={forms['it-requests'].best_contact_method} onChange={e => updateForm('it-requests', 'best_contact_method', e.target.value)} options={['Phone', 'Email', 'Text']} />
-                      <InputField label="Contact Time" value={forms['it-requests'].best_contact_time} onChange={e => updateForm('it-requests', 'best_contact_time', e.target.value)} />
-                    </div>
-                    <div className="mt-4">
-                      <InputField label="Description of Issue" large value={forms['it-requests'].description_of_issue} onChange={e => updateForm('it-requests', 'description_of_issue', e.target.value)} placeholder="Describe the issue in detail..." />
-                    </div>
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-2 text-gray-800">IT Request</h2>
+                  <p className="text-sm text-gray-500 mb-4">Ticket # will be auto-generated</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Date Reported" type="date" value={forms['it-requests'].date_reported} onChange={e => updateForm('it-requests', 'date_reported', e.target.value)} />
+                    <InputField label="Urgency Level" value={forms['it-requests'].urgency} onChange={e => updateForm('it-requests', 'urgency', e.target.value)} options={['Low', 'Medium', 'High', 'Critical']} />
+                    <InputField label="Requester Name" value={forms['it-requests'].requester_name} onChange={e => updateForm('it-requests', 'requester_name', e.target.value)} />
+                    <InputField label="Device / System" value={forms['it-requests'].device_system} onChange={e => updateForm('it-requests', 'device_system', e.target.value)} />
+                    <InputField label="Contact Method" value={forms['it-requests'].best_contact_method} onChange={e => updateForm('it-requests', 'best_contact_method', e.target.value)} options={['Phone', 'Email', 'Text']} />
+                    <InputField label="Contact Time" value={forms['it-requests'].best_contact_time} onChange={e => updateForm('it-requests', 'best_contact_time', e.target.value)} />
                   </div>
-                  <div className="bg-white rounded-2xl shadow-lg p-6">
-                    <FileUpload label="Screenshots / Documentation" files={files['it-requests'].documentation} onFilesChange={f => updateFiles('it-requests', 'documentation', f)} onViewFile={setViewingFile} />
-                  </div>
-                </>
+                  <div className="mt-4"><InputField label="Description of Issue" large value={forms['it-requests'].description_of_issue} onChange={e => updateForm('it-requests', 'description_of_issue', e.target.value)} placeholder="Describe the issue in detail..." /></div>
+                </div>
               )}
 
-{activeModule === 'billing-inquiry' && (
-  <>
-    <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
-      <h2 className="font-semibold mb-4 text-gray-800">Patient Accounting Inquiry</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <InputField label="Patient Name" value={forms['billing-inquiry'].patient_name} onChange={e => updateForm('billing-inquiry', 'patient_name', e.target.value)} />
-        <InputField label="Chart Number" value={forms['billing-inquiry'].chart_number} onChange={e => updateForm('billing-inquiry', 'chart_number', e.target.value)} />
-        <InputField label="Parent Name" value={forms['billing-inquiry'].parent_name} onChange={e => updateForm('billing-inquiry', 'parent_name', e.target.value)} />
-        <InputField label="Date of Request" type="date" value={forms['billing-inquiry'].date_of_request} onChange={e => updateForm('billing-inquiry', 'date_of_request', e.target.value)} />
-        <InputField label="Type of Inquiry" value={forms['billing-inquiry'].inquiry_type} onChange={e => updateForm('billing-inquiry', 'inquiry_type', e.target.value)} options={INQUIRY_TYPES} />
-        <InputField label="Amount in Question" prefix="$" value={forms['billing-inquiry'].amount_in_question} onChange={e => updateForm('billing-inquiry', 'amount_in_question', e.target.value)} />
-        <InputField label="Best Contact Method" value={forms['billing-inquiry'].best_contact_method} onChange={e => updateForm('billing-inquiry', 'best_contact_method', e.target.value)} options={CONTACT_METHODS} />
-        <InputField label="Best Time to Contact" value={forms['billing-inquiry'].best_contact_time} onChange={e => updateForm('billing-inquiry', 'best_contact_time', e.target.value)} />
-        <InputField label="Billing Team Reviewed" value={forms['billing-inquiry'].billing_team_reviewed} onChange={e => updateForm('billing-inquiry', 'billing_team_reviewed', e.target.value)} />
-        <InputField label="Date Reviewed" type="date" value={forms['billing-inquiry'].date_reviewed} onChange={e => updateForm('billing-inquiry', 'date_reviewed', e.target.value)} />
-        <InputField label="Status" value={forms['billing-inquiry'].status} onChange={e => updateForm('billing-inquiry', 'status', e.target.value)} options={['Pending', 'In Progress', 'Resolved']} />
-        <InputField label="Result" value={forms['billing-inquiry'].result} onChange={e => updateForm('billing-inquiry', 'result', e.target.value)} />
-      </div>
-      <div className="mt-4">
-        <InputField label="Description" large value={forms['billing-inquiry'].description} onChange={e => updateForm('billing-inquiry', 'description', e.target.value)} />
-      </div>
-    </div>
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <FileUpload label="Supporting Documentation" files={files['billing-inquiry'].documentation} onFilesChange={f => updateFiles('billing-inquiry', 'documentation', f)} onViewFile={setViewingFile} />
-    </div>
-  </>
-)}
+              {activeModule === 'billing-inquiry' && (
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Patient Accounting Inquiry</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Patient Name" value={forms['billing-inquiry'].patient_name} onChange={e => updateForm('billing-inquiry', 'patient_name', e.target.value)} />
+                    <InputField label="Chart Number" value={forms['billing-inquiry'].chart_number} onChange={e => updateForm('billing-inquiry', 'chart_number', e.target.value)} />
+                    <InputField label="Date of Request" type="date" value={forms['billing-inquiry'].date_of_request} onChange={e => updateForm('billing-inquiry', 'date_of_request', e.target.value)} />
+                    <InputField label="Type of Inquiry" value={forms['billing-inquiry'].inquiry_type} onChange={e => updateForm('billing-inquiry', 'inquiry_type', e.target.value)} options={INQUIRY_TYPES} />
+                    <InputField label="Amount in Question" prefix="$" value={forms['billing-inquiry'].amount_in_question} onChange={e => updateForm('billing-inquiry', 'amount_in_question', e.target.value)} />
+                    <InputField label="Contact Method" value={forms['billing-inquiry'].best_contact_method} onChange={e => updateForm('billing-inquiry', 'best_contact_method', e.target.value)} options={CONTACT_METHODS} />
+                  </div>
+                  <div className="mt-4"><InputField label="Description" large value={forms['billing-inquiry'].description} onChange={e => updateForm('billing-inquiry', 'description', e.target.value)} /></div>
+                </div>
+              )}
 
-{activeModule === 'bills-payment' && (
-  <>
-    <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
-      <h2 className="font-semibold mb-4 text-gray-800">Bills Payment Log</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <InputField label="Bill Status" value={forms['bills-payment'].bill_status} onChange={e => updateForm('bills-payment', 'bill_status', e.target.value)} options={['Pending', 'Approved', 'Paid']} />
-        <InputField label="Date" type="date" value={forms['bills-payment'].bill_date} onChange={e => updateForm('bills-payment', 'bill_date', e.target.value)} />
-        <InputField label="Vendor" value={forms['bills-payment'].vendor} onChange={e => updateForm('bills-payment', 'vendor', e.target.value)} />
-        <InputField label="Amount" prefix="$" value={forms['bills-payment'].amount} onChange={e => updateForm('bills-payment', 'amount', e.target.value)} />
-        <InputField label="Due Date" type="date" value={forms['bills-payment'].due_date} onChange={e => updateForm('bills-payment', 'due_date', e.target.value)} />
-        <InputField label="Manager Initials" value={forms['bills-payment'].manager_initials} onChange={e => updateForm('bills-payment', 'manager_initials', e.target.value)} />
-        <InputField label="Accounts Payable Reviewed" value={forms['bills-payment'].ap_reviewed} onChange={e => updateForm('bills-payment', 'ap_reviewed', e.target.value)} options={['Yes', 'No']} />
-        <InputField label="Date Reviewed" type="date" value={forms['bills-payment'].date_reviewed} onChange={e => updateForm('bills-payment', 'date_reviewed', e.target.value)} />
-        <InputField label="Paid (Y/N)" value={forms['bills-payment'].paid} onChange={e => updateForm('bills-payment', 'paid', e.target.value)} options={['Yes', 'No']} />
-      </div>
-      <div className="mt-4">
-        <InputField label="Description (Bill Details)" large value={forms['bills-payment'].description} onChange={e => updateForm('bills-payment', 'description', e.target.value)} />
-      </div>
-    </div>
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <FileUpload label="Bill / Invoice Documents" files={files['bills-payment'].documentation} onFilesChange={f => updateFiles('bills-payment', 'documentation', f)} onViewFile={setViewingFile} />
-    </div>
-  </>
-)}
+              {activeModule === 'bills-payment' && (
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Bills Payment Log</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Bill Status" value={forms['bills-payment'].bill_status} onChange={e => updateForm('bills-payment', 'bill_status', e.target.value)} options={['Pending', 'Approved', 'Paid']} />
+                    <InputField label="Date" type="date" value={forms['bills-payment'].bill_date} onChange={e => updateForm('bills-payment', 'bill_date', e.target.value)} />
+                    <InputField label="Vendor" value={forms['bills-payment'].vendor} onChange={e => updateForm('bills-payment', 'vendor', e.target.value)} />
+                    <InputField label="Amount" prefix="$" value={forms['bills-payment'].amount} onChange={e => updateForm('bills-payment', 'amount', e.target.value)} />
+                    <InputField label="Due Date" type="date" value={forms['bills-payment'].due_date} onChange={e => updateForm('bills-payment', 'due_date', e.target.value)} />
+                    <InputField label="Manager Initials" value={forms['bills-payment'].manager_initials} onChange={e => updateForm('bills-payment', 'manager_initials', e.target.value)} />
+                  </div>
+                  <div className="mt-4"><InputField label="Description" large value={forms['bills-payment'].description} onChange={e => updateForm('bills-payment', 'description', e.target.value)} /></div>
+                </div>
+              )}
 
-{activeModule === 'order-requests' && (
-  <>
-    <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
-      <h2 className="font-semibold mb-4 text-gray-800">Order Invoice Log</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <InputField label="Date Entered" type="date" value={forms['order-requests'].date_entered} onChange={e => updateForm('order-requests', 'date_entered', e.target.value)} />
-        <InputField label="Vendor" value={forms['order-requests'].vendor} onChange={e => updateForm('order-requests', 'vendor', e.target.value)} />
-        <InputField label="Invoice Number" value={forms['order-requests'].invoice_number} onChange={e => updateForm('order-requests', 'invoice_number', e.target.value)} />
-        <InputField label="Invoice Date" type="date" value={forms['order-requests'].invoice_date} onChange={e => updateForm('order-requests', 'invoice_date', e.target.value)} />
-        <InputField label="Due Date" type="date" value={forms['order-requests'].due_date} onChange={e => updateForm('order-requests', 'due_date', e.target.value)} />
-        <InputField label="Amount" prefix="$" value={forms['order-requests'].amount} onChange={e => updateForm('order-requests', 'amount', e.target.value)} />
-      </div>
-      <div className="mt-4">
-        <InputField label="Notes" large value={forms['order-requests'].notes} onChange={e => updateForm('order-requests', 'notes', e.target.value)} />
-      </div>
-    </div>
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <FileUpload label="Order Invoices / POs" files={files['order-requests'].orderInvoices} onFilesChange={f => updateFiles('order-requests', 'orderInvoices', f)} onViewFile={setViewingFile} />
-    </div>
-  </>
-)}
+              {activeModule === 'order-requests' && (
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Order Invoice Log</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Date Entered" type="date" value={forms['order-requests'].date_entered} onChange={e => updateForm('order-requests', 'date_entered', e.target.value)} />
+                    <InputField label="Vendor" value={forms['order-requests'].vendor} onChange={e => updateForm('order-requests', 'vendor', e.target.value)} />
+                    <InputField label="Invoice Number" value={forms['order-requests'].invoice_number} onChange={e => updateForm('order-requests', 'invoice_number', e.target.value)} />
+                    <InputField label="Amount" prefix="$" value={forms['order-requests'].amount} onChange={e => updateForm('order-requests', 'amount', e.target.value)} />
+                    <InputField label="Due Date" type="date" value={forms['order-requests'].due_date} onChange={e => updateForm('order-requests', 'due_date', e.target.value)} />
+                  </div>
+                  <div className="mt-4"><InputField label="Notes" large value={forms['order-requests'].notes} onChange={e => updateForm('order-requests', 'notes', e.target.value)} /></div>
+                </div>
+              )}
 
- {activeModule === 'refund-requests' && (
-  <>
-    <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
-      <h2 className="font-semibold mb-4 text-gray-800">Patient Refund Request Log</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <InputField label="Patient Name" value={forms['refund-requests'].patient_name} onChange={e => updateForm('refund-requests', 'patient_name', e.target.value)} />
-        <InputField label="Chart Number" value={forms['refund-requests'].chart_number} onChange={e => updateForm('refund-requests', 'chart_number', e.target.value)} />
-        <InputField label="Parent Name" value={forms['refund-requests'].parent_name} onChange={e => updateForm('refund-requests', 'parent_name', e.target.value)} />
-        <InputField label="RP Address" value={forms['refund-requests'].rp_address} onChange={e => updateForm('refund-requests', 'rp_address', e.target.value)} />
-        <InputField label="Date of Request" type="date" value={forms['refund-requests'].date_of_request} onChange={e => updateForm('refund-requests', 'date_of_request', e.target.value)} />
-        <InputField label="Type Transaction" value={forms['refund-requests'].type} onChange={e => updateForm('refund-requests', 'type', e.target.value)} options={REFUND_TYPES} />
-        <InputField label="Amount Requested" prefix="$" value={forms['refund-requests'].amount_requested} onChange={e => updateForm('refund-requests', 'amount_requested', e.target.value)} />
-        <InputField label="Best Contact Method" value={forms['refund-requests'].best_contact_method} onChange={e => updateForm('refund-requests', 'best_contact_method', e.target.value)} options={CONTACT_METHODS} />
-        <InputField label="eAssist Audited" value={forms['refund-requests'].eassist_audited} onChange={e => updateForm('refund-requests', 'eassist_audited', e.target.value)} options={['Yes', 'No', 'N/A']} />
-        <InputField label="Status" value={forms['refund-requests'].status} onChange={e => updateForm('refund-requests', 'status', e.target.value)} options={['Pending', 'Approved', 'Completed', 'Denied']} />
-      </div>
-      <div className="mt-4">
-        <InputField label="Description" large value={forms['refund-requests'].description} onChange={e => updateForm('refund-requests', 'description', e.target.value)} />
-      </div>
-    </div>
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <FileUpload label="Supporting Documentation" files={files['refund-requests'].documentation} onFilesChange={f => updateFiles('refund-requests', 'documentation', f)} onViewFile={setViewingFile} />
-    </div>
-  </>
-)}
+              {activeModule === 'refund-requests' && (
+                <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <h2 className="font-semibold mb-4 text-gray-800">Patient Refund Request Log</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Patient Name" value={forms['refund-requests'].patient_name} onChange={e => updateForm('refund-requests', 'patient_name', e.target.value)} />
+                    <InputField label="Chart Number" value={forms['refund-requests'].chart_number} onChange={e => updateForm('refund-requests', 'chart_number', e.target.value)} />
+                    <InputField label="Date of Request" type="date" value={forms['refund-requests'].date_of_request} onChange={e => updateForm('refund-requests', 'date_of_request', e.target.value)} />
+                    <InputField label="Type" value={forms['refund-requests'].type} onChange={e => updateForm('refund-requests', 'type', e.target.value)} options={REFUND_TYPES} />
+                    <InputField label="Amount Requested" prefix="$" value={forms['refund-requests'].amount_requested} onChange={e => updateForm('refund-requests', 'amount_requested', e.target.value)} />
+                    <InputField label="Contact Method" value={forms['refund-requests'].best_contact_method} onChange={e => updateForm('refund-requests', 'best_contact_method', e.target.value)} options={CONTACT_METHODS} />
+                  </div>
+                  <div className="mt-4"><InputField label="Description" large value={forms['refund-requests'].description} onChange={e => updateForm('refund-requests', 'description', e.target.value)} /></div>
+                </div>
+              )}
 
-              <button
-                onClick={() => saveEntry(activeModule)}
-                disabled={saving}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-              >
+              <button onClick={() => saveEntry(activeModule)} disabled={saving} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50">
                 {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Save Entry'}
               </button>
             </div>
           )}
 
-{/* History View - Staff */}
-{!isAdmin && view === 'history' && (
-  <div className="space-y-4">
-    {/* Sorting Controls */}
-    <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={staffRecordSearch}
-              onChange={e => { setStaffRecordSearch(e.target.value); setStaffCurrentPage(1); }}
-              placeholder="Search records..."
-              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none transition-all"
-            />
-            {staffRecordSearch && (
-              <button onClick={() => setStaffRecordSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 font-medium">Sort:</span>
-          <select
-            value={staffSortOrder}
-            onChange={e => setStaffSortOrder(e.target.value)}
-            className="px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white"
-          >
-            <option value="desc">Newest First</option>
-            <option value="asc">Oldest First</option>
-          </select>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 font-medium">Show:</span>
-          <select
-            value={staffRecordsPerPage}
-            onChange={e => { setStaffRecordsPerPage(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setStaffCurrentPage(1); }}
-            className="px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white"
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value="all">All</option>
-          </select>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-        <p className="text-sm text-gray-500">
-          Showing <span className="font-semibold text-gray-700">{getStaffPaginatedEntries().length}</span> of <span className="font-semibold text-gray-700">{getStaffEntries().length}</span> records
-          {staffRecordSearch && <span className="text-blue-600"> (filtered)</span>}
-        </p>
-        <span className={`text-sm font-medium px-3 py-1 rounded-lg ${currentColors?.light} ${currentColors?.text}`}>
-          {currentModule?.name}
-        </span>
-      </div>
-    </div>
-
-    {/* Records List */}
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-      <h2 className="font-semibold mb-4 text-gray-800">Your Entries</h2>
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
-      ) : getStaffEntries().length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="text-gray-500">{staffRecordSearch ? 'No records match your search' : 'No entries yet'}</p>
-          {staffRecordSearch && (
-            <button onClick={() => setStaffRecordSearch('')} className="mt-2 text-blue-600 text-sm font-medium hover:underline">Clear search</button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {getStaffPaginatedEntries().map(e => {
-            const canEdit = canEditRecord(e.created_at);
-            const isEditing = editingStaffEntry === e.id;
-            const docKey = `${activeModule}-${e.id}`;
-            const docs = entryDocuments[docKey] || [];
-            
-            if (!entryDocuments[docKey]) {
-              loadEntryDocuments(activeModule, e.id);
-            }
-
-            let bgClass = `${currentColors?.bg} border ${currentColors?.border}`;
-            if (activeModule === 'daily-recon') {
-              if (e.status === 'Accounted') bgClass = 'bg-emerald-50 border-2 border-emerald-300';
-              else if (e.status === 'Rejected') bgClass = 'bg-red-50 border-2 border-red-300';
-              else bgClass = 'bg-amber-50 border-2 border-amber-300';
-            }
-            
-            return (
-              <div key={e.id} className={`p-4 rounded-xl ${bgClass}`}>
-                {isEditing ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                        <Edit3 className="w-4 h-4" /> Edit Entry
-                      </h4>
-                      <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className="text-gray-400 hover:text-gray-600">
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    {activeModule === 'daily-recon' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="Date" type="date" value={staffEditForm.recon_date} onChange={ev => updateStaffEditForm('recon_date', ev.target.value)} />
-                        <InputField label="Cash" prefix="$" value={staffEditForm.cash} onChange={ev => updateStaffEditForm('cash', ev.target.value)} />
-                        <InputField label="Credit Card" prefix="$" value={staffEditForm.credit_card} onChange={ev => updateStaffEditForm('credit_card', ev.target.value)} />
-                        <InputField label="Checks OTC" prefix="$" value={staffEditForm.checks_otc} onChange={ev => updateStaffEditForm('checks_otc', ev.target.value)} />
-                        <InputField label="Insurance Checks" prefix="$" value={staffEditForm.insurance_checks} onChange={ev => updateStaffEditForm('insurance_checks', ev.target.value)} />
-                        <InputField label="Care Credit" prefix="$" value={staffEditForm.care_credit} onChange={ev => updateStaffEditForm('care_credit', ev.target.value)} />
-                        <InputField label="VCC" prefix="$" value={staffEditForm.vcc} onChange={ev => updateStaffEditForm('vcc', ev.target.value)} />
-                        <InputField label="EFTs" prefix="$" value={staffEditForm.efts} onChange={ev => updateStaffEditForm('efts', ev.target.value)} />
-                        <div className="col-span-2">
-                          <InputField label="Notes" value={staffEditForm.notes} onChange={ev => updateStaffEditForm('notes', ev.target.value)} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {activeModule === 'billing-inquiry' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="Patient Name" value={staffEditForm.patient_name} onChange={ev => updateStaffEditForm('patient_name', ev.target.value)} />
-                        <InputField label="Chart Number" value={staffEditForm.chart_number} onChange={ev => updateStaffEditForm('chart_number', ev.target.value)} />
-                        <InputField label="Parent Name" value={staffEditForm.parent_name} onChange={ev => updateStaffEditForm('parent_name', ev.target.value)} />
-                        <InputField label="Date of Request" type="date" value={staffEditForm.date_of_request} onChange={ev => updateStaffEditForm('date_of_request', ev.target.value)} />
-                        <InputField label="Type of Inquiry" value={staffEditForm.inquiry_type} onChange={ev => updateStaffEditForm('inquiry_type', ev.target.value)} options={INQUIRY_TYPES} />
-                        <InputField label="Amount in Question" prefix="$" value={staffEditForm.amount_in_question} onChange={ev => updateStaffEditForm('amount_in_question', ev.target.value)} />
-                        <InputField label="Contact Method" value={staffEditForm.best_contact_method} onChange={ev => updateStaffEditForm('best_contact_method', ev.target.value)} options={CONTACT_METHODS} />
-                        <InputField label="Best Time to Contact" value={staffEditForm.best_contact_time} onChange={ev => updateStaffEditForm('best_contact_time', ev.target.value)} />
-                        <div className="col-span-2">
-                          <InputField label="Description" large value={staffEditForm.description} onChange={ev => updateStaffEditForm('description', ev.target.value)} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {activeModule === 'bills-payment' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="Bill Status" value={staffEditForm.bill_status} onChange={ev => updateStaffEditForm('bill_status', ev.target.value)} options={['Pending', 'Approved', 'Paid']} />
-                        <InputField label="Date" type="date" value={staffEditForm.bill_date} onChange={ev => updateStaffEditForm('bill_date', ev.target.value)} />
-                        <InputField label="Vendor" value={staffEditForm.vendor} onChange={ev => updateStaffEditForm('vendor', ev.target.value)} />
-                        <InputField label="Amount" prefix="$" value={staffEditForm.amount} onChange={ev => updateStaffEditForm('amount', ev.target.value)} />
-                        <InputField label="Due Date" type="date" value={staffEditForm.due_date} onChange={ev => updateStaffEditForm('due_date', ev.target.value)} />
-                        <InputField label="Manager Initials" value={staffEditForm.manager_initials} onChange={ev => updateStaffEditForm('manager_initials', ev.target.value)} />
-                        <div className="col-span-2">
-                          <InputField label="Description" large value={staffEditForm.description} onChange={ev => updateStaffEditForm('description', ev.target.value)} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {activeModule === 'order-requests' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="Date Entered" type="date" value={staffEditForm.date_entered} onChange={ev => updateStaffEditForm('date_entered', ev.target.value)} />
-                        <InputField label="Vendor" value={staffEditForm.vendor} onChange={ev => updateStaffEditForm('vendor', ev.target.value)} />
-                        <InputField label="Invoice Number" value={staffEditForm.invoice_number} onChange={ev => updateStaffEditForm('invoice_number', ev.target.value)} />
-                        <InputField label="Invoice Date" type="date" value={staffEditForm.invoice_date} onChange={ev => updateStaffEditForm('invoice_date', ev.target.value)} />
-                        <InputField label="Due Date" type="date" value={staffEditForm.due_date} onChange={ev => updateStaffEditForm('due_date', ev.target.value)} />
-                        <InputField label="Amount" prefix="$" value={staffEditForm.amount} onChange={ev => updateStaffEditForm('amount', ev.target.value)} />
-                        <div className="col-span-2">
-                          <InputField label="Notes" large value={staffEditForm.notes} onChange={ev => updateStaffEditForm('notes', ev.target.value)} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {activeModule === 'refund-requests' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="Patient Name" value={staffEditForm.patient_name} onChange={ev => updateStaffEditForm('patient_name', ev.target.value)} />
-                        <InputField label="Chart Number" value={staffEditForm.chart_number} onChange={ev => updateStaffEditForm('chart_number', ev.target.value)} />
-                        <InputField label="Parent Name" value={staffEditForm.parent_name} onChange={ev => updateStaffEditForm('parent_name', ev.target.value)} />
-                        <InputField label="RP Address" value={staffEditForm.rp_address} onChange={ev => updateStaffEditForm('rp_address', ev.target.value)} />
-                        <InputField label="Date of Request" type="date" value={staffEditForm.date_of_request} onChange={ev => updateStaffEditForm('date_of_request', ev.target.value)} />
-                        <InputField label="Type" value={staffEditForm.type} onChange={ev => updateStaffEditForm('type', ev.target.value)} options={REFUND_TYPES} />
-                        <InputField label="Amount Requested" prefix="$" value={staffEditForm.amount_requested} onChange={ev => updateStaffEditForm('amount_requested', ev.target.value)} />
-                        <InputField label="Contact Method" value={staffEditForm.best_contact_method} onChange={ev => updateStaffEditForm('best_contact_method', ev.target.value)} options={CONTACT_METHODS} />
-                        <div className="col-span-2">
-                          <InputField label="Description" large value={staffEditForm.description} onChange={ev => updateStaffEditForm('description', ev.target.value)} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {activeModule === 'it-requests' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="Date Reported" type="date" value={staffEditForm.date_reported} onChange={ev => updateStaffEditForm('date_reported', ev.target.value)} />
-                        <InputField label="Urgency" value={staffEditForm.urgency} onChange={ev => updateStaffEditForm('urgency', ev.target.value)} options={['Low', 'Medium', 'High', 'Critical']} />
-                        <InputField label="Requester Name" value={staffEditForm.requester_name} onChange={ev => updateStaffEditForm('requester_name', ev.target.value)} />
-                        <InputField label="Device/System" value={staffEditForm.device_system} onChange={ev => updateStaffEditForm('device_system', ev.target.value)} />
-                        <InputField label="Contact Method" value={staffEditForm.best_contact_method} onChange={ev => updateStaffEditForm('best_contact_method', ev.target.value)} options={['Phone', 'Email', 'Text']} />
-                        <InputField label="Best Contact Time" value={staffEditForm.best_contact_time} onChange={ev => updateStaffEditForm('best_contact_time', ev.target.value)} />
-                        <div className="col-span-2">
-                          <InputField label="Description of Issue" large value={staffEditForm.description_of_issue} onChange={ev => updateStaffEditForm('description_of_issue', ev.target.value)} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="flex gap-2 pt-2">
-                      <button onClick={saveStaffEntryUpdate} disabled={saving} className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50">
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save Changes'}
-                      </button>
-                      <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all">
-                        Cancel
-                      </button>
+          {/* History View - Staff */}
+          {!isAdmin && view === 'history' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input type="text" value={staffRecordSearch} onChange={e => { setStaffRecordSearch(e.target.value); setStaffCurrentPage(1); }} placeholder="Search records..." className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none transition-all" />
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 font-medium">Sort:</span>
+                    <select value={staffSortOrder} onChange={e => setStaffSortOrder(e.target.value)} className="px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white">
+                      <option value="desc">Newest First</option>
+                      <option value="asc">Oldest First</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-sm text-gray-500">Showing <span className="font-semibold text-gray-700">{getStaffPaginatedEntries().length}</span> of <span className="font-semibold text-gray-700">{getStaffEntries().length}</span> records</p>
+                  <span className={`text-sm font-medium px-3 py-1 rounded-lg ${currentColors?.light} ${currentColors?.text}`}>{currentModule?.name}</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                <h2 className="font-semibold mb-4 text-gray-800">Your Entries</h2>
+                {getStaffEntries().length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><FileText className="w-8 h-8 text-gray-400" /></div>
+                    <p className="text-gray-500">{staffRecordSearch ? 'No records match your search' : 'No entries yet'}</p>
+                  </div>
                 ) : (
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-800">
-                          {e.ticket_number ? `IT-${e.ticket_number}` : e.patient_name || e.vendor || e.recon_date || new Date(e.created_at).toLocaleDateString()}
-                        </p>
-                        <StatusBadge status={e.status || (activeModule === 'daily-recon' ? 'Pending' : e.status)} />
-                        {!canEdit && <Lock className="w-4 h-4 text-gray-400" title="Locked (past Friday cutoff)" />}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">{new Date(e.created_at).toLocaleDateString()}</p>
-                      
-                      {activeModule === 'daily-recon' && e.total_collected && (
-                        <p className="text-lg font-bold text-emerald-600 mt-2">${Number(e.total_collected).toFixed(2)}</p>
-                      )}
-                      
-                      {activeModule !== 'daily-recon' && (e.amount || e.amount_requested || e.amount_in_question) && (
-                        <p className="text-lg font-bold text-emerald-600 mt-2">${Number(e.amount || e.amount_requested || e.amount_in_question).toFixed(2)}</p>
-                      )}
-                      
-                      {docs.length > 0 && (
-                        <div className="mt-3 space-y-1">
-                          <p className="text-xs font-medium text-gray-500">Attached Files:</p>
-                          {docs.map(doc => (
-                            <div key={doc.id} className="flex items-center gap-2 text-sm">
-                              <File className="w-3 h-3 text-gray-400" />
-                              <span className="text-gray-600 truncate">{doc.file_name}</span>
-                              <button onClick={() => viewDocument(doc)} className="p-1 text-blue-500 hover:bg-blue-100 rounded transition-colors" title="Preview">
-                                <Eye className="w-3 h-3" />
-                              </button>
+                  <div className="space-y-3">
+                    {getStaffPaginatedEntries().map(e => {
+                      const canEdit = canEditRecord(e.created_at);
+                      let bgClass = `${currentColors?.bg} border ${currentColors?.border}`;
+                      if (activeModule === 'daily-recon') {
+                        if (e.status === 'Accounted') bgClass = 'bg-emerald-50 border-2 border-emerald-300';
+                        else if (e.status === 'Rejected') bgClass = 'bg-red-50 border-2 border-red-300';
+                        else bgClass = 'bg-amber-50 border-2 border-amber-300';
+                      }
+                      return (
+                        <div key={e.id} className={`p-4 rounded-xl ${bgClass}`}>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-800">{e.ticket_number ? `IT-${e.ticket_number}` : e.patient_name || e.vendor || e.recon_date || new Date(e.created_at).toLocaleDateString()}</p>
+                                <StatusBadge status={e.status || (activeModule === 'daily-recon' ? 'Pending' : e.status)} />
+                                {!canEdit && <Lock className="w-4 h-4 text-gray-400" title="Locked (past Friday cutoff)" />}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">{new Date(e.created_at).toLocaleDateString()}</p>
+                              {activeModule === 'daily-recon' && e.total_collected && (<p className="text-lg font-bold text-emerald-600 mt-2">${Number(e.total_collected).toFixed(2)}</p>)}
+                              {activeModule !== 'daily-recon' && (e.amount || e.amount_requested || e.amount_in_question) && (<p className="text-lg font-bold text-emerald-600 mt-2">${Number(e.amount || e.amount_requested || e.amount_in_question).toFixed(2)}</p>)}
                             </div>
-                          ))}
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => setViewingEntry(e)} className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    
-<div className="flex items-center gap-1">
-                      <button onClick={() => setViewingEntry(e)} className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Preview">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      {canEdit && (
-                        <button onClick={() => startEditingStaffEntry(e)} className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1">
-                          <Edit3 className="w-4 h-4" /> Edit
-                        </button>
-                      )}
+                      );
+                    })}
+                  </div>
+                )}
+                {getStaffEntries().length > 0 && staffRecordsPerPage !== 'all' && getStaffTotalPages() > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">Page {staffCurrentPage} of {getStaffTotalPages()}</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setStaffCurrentPage(1)} disabled={staffCurrentPage === 1} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">First</button>
+                      <button onClick={() => setStaffCurrentPage(p => Math.max(p - 1, 1))} disabled={staffCurrentPage === 1} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">Prev</button>
+                      <span className="px-3 py-2 text-sm font-semibold text-blue-600 bg-blue-50 rounded-lg">{staffCurrentPage}</span>
+                      <button onClick={() => setStaffCurrentPage(p => Math.min(p + 1, getStaffTotalPages()))} disabled={staffCurrentPage === getStaffTotalPages()} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">Next</button>
+                      <button onClick={() => setStaffCurrentPage(getStaffTotalPages())} disabled={staffCurrentPage === getStaffTotalPages()} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">Last</button>
                     </div>
                   </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-      )}
-      
-      {/* Pagination */}
-      {!loading && getStaffEntries().length > 0 && staffRecordsPerPage !== 'all' && getStaffTotalPages() > 1 && (
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-          <p className="text-sm text-gray-500">Page {staffCurrentPage} of {getStaffTotalPages()}</p>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setStaffCurrentPage(1)} disabled={staffCurrentPage === 1} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">First</button>
-            <button onClick={() => setStaffCurrentPage(p => Math.max(p - 1, 1))} disabled={staffCurrentPage === 1} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
-            <span className="px-3 py-2 text-sm font-semibold text-blue-600 bg-blue-50 rounded-lg">{staffCurrentPage}</span>
-            <button onClick={() => setStaffCurrentPage(p => Math.min(p + 1, getStaffTotalPages()))} disabled={staffCurrentPage === getStaffTotalPages()} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
-            <button onClick={() => setStaffCurrentPage(getStaffTotalPages())} disabled={staffCurrentPage === getStaffTotalPages()} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">Last</button>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
+            </div>
+          )}
         </main>
       </div>
 
