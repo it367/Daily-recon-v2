@@ -1,4 +1,4 @@
-/**Clinic Tracking System - DEMO VERSION**// - M
+//**Clinic Tracking System - DEMO VERSION**- M //
 
 'use client';
 import { useState, useEffect, useRef } from 'react';
