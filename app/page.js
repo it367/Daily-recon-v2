@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import { supabase } from '../lib/supabase';
 import { DollarSign, FileText, Building2, Bot, Send, Loader2, LogOut, User, Upload, X, File, Shield, Receipt, CreditCard, Package, RefreshCw, Monitor, Menu, Eye, EyeOff, FolderOpen, Edit3, Users, Plus, Trash2, Lock, Download, Settings, MessageCircle, Sparkles, AlertCircle, Maximize2, Minimize2, Headphones, Search, TrendingUp, TrendingDown, Calendar, PieChart, BarChart3, ClipboardList, Paperclip, CheckCircle, Circle } from 'lucide-react';
+import { MODULE_COLORS, STATUS_COLORS, ROLE_STYLES, BTN, CARD, INPUT, LAYOUT, ANALYTICS_CARDS, ICON_BOX, URGENCY_COLORS, CONFIRM_COLORS, FILE_UPLOAD, CHECKBOX } from './styles';
 const CHECKLIST_MODULES = [
   { id: 'daily-recon', name: 'Daily Reconciliation', icon: DollarSign, color: 'emerald', table: 'daily_recon' },
   { id: 'completed-procedure', name: 'Completed Procedure', icon: ClipboardList, color: 'teal', table: 'completed_procedures' },
@@ -26,16 +27,7 @@ const SUPPORT_MODULES = [
 
 const ALL_MODULES = [...CHECKLIST_MODULES, ...MODULES, ...SUPPORT_MODULES];
 
-const MODULE_COLORS = {
-  'daily-recon': { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', accent: 'bg-emerald-500', light: 'bg-emerald-100' },
-  'billing-inquiry': { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', accent: 'bg-blue-500', light: 'bg-blue-100' },
-  'bills-payment': { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', accent: 'bg-violet-500', light: 'bg-violet-100' },
-  'order-requests': { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', accent: 'bg-amber-500', light: 'bg-amber-100' },
-  'refund-requests': { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', accent: 'bg-rose-500', light: 'bg-rose-100' },
-'it-requests': { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', accent: 'bg-cyan-500', light: 'bg-cyan-100' },
-  'completed-procedure': { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-700', accent: 'bg-teal-500', light: 'bg-teal-100' },
-  'claims-documents': { bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-700', accent: 'bg-sky-500', light: 'bg-sky-100' },
-};
+// MODULE_COLORS imported from styles
 
 const IT_STATUSES = ['For Review', 'In Progress', 'On-hold', 'Resolved'];
 const INQUIRY_TYPES = ['Patient Refund', 'Insurance Refund', 'Patient Balance', 'Payment Plan', 'Other'];
@@ -255,7 +247,7 @@ const ADMIN_CARD_CONFIG = {
     getExtraInfo: (e) => (
       <>
         <span className="text-xs text-gray-500">Urgency:</span>
-        <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${e.urgency === 'Critical' ? 'bg-red-100 text-red-700' : e.urgency === 'High' ? 'bg-orange-100 text-orange-700' : e.urgency === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>{e.urgency || 'Low'}</span>
+        <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${URGENCY_COLORS[e.urgency] || URGENCY_COLORS.Low}`}>{e.urgency || 'Low'}</span>
       </>
     ),
     getDetail: (e) => `${e.locations?.name} • ${new Date(e.created_at).toLocaleDateString()}`,
@@ -472,10 +464,45 @@ const renderDocList = (docs, viewDocument, downloadDocument) => docs.length > 0 
 
 // Helper: checkbox for record selection
 const renderCheckbox = (isSelected, onToggle, isITViewOnly) => !isITViewOnly ? (
-  <button onClick={(ev) => { ev.stopPropagation(); onToggle(); }} className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-1 transition-all ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-300 hover:border-purple-400'}`}>
+  <button onClick={(ev) => { ev.stopPropagation(); onToggle(); }} className={`${CHECKBOX.base} mt-1 ${isSelected ? CHECKBOX.selected : CHECKBOX.unselected}`}>
     {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
   </button>
 ) : null;
+
+// Helper: render KPI analytics cards in a grid
+const renderKPICards = (cards) => (
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    {cards.map((c, i) => (
+      <div key={i} className={ANALYTICS_CARDS[c.color]}>
+        <p className={`text-sm font-medium ${ANALYTICS_CARDS.subtitleColors[c.color]}`}>{c.label}</p>
+        <p className="text-3xl font-bold mt-1">{c.value}</p>
+        {c.detail && <p className={`text-xs mt-2 ${ANALYTICS_CARDS.detailColors[c.color]}`}>{c.detail}</p>}
+      </div>
+    ))}
+  </div>
+);
+
+// Helper: group records by location with optional value aggregation
+const groupByLocation = (data, valueKey) => {
+  const byLoc = {};
+  data.forEach(r => {
+    const loc = r.locations?.name || 'Unknown';
+    if (!byLoc[loc]) byLoc[loc] = { count: 0, total: 0 };
+    byLoc[loc].count++;
+    if (valueKey) byLoc[loc].total += parseFloat(r[valueKey]) || 0;
+  });
+  return byLoc;
+};
+
+// Helper: empty state placeholder
+const EmptyState = ({ icon: Icon, message }) => (
+  <div className={`${CARD.base} text-center py-12`}>
+    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <Icon className="w-8 h-8 text-gray-400" />
+    </div>
+    <p className="text-gray-500">{message}</p>
+  </div>
+);
 
 const formatRole = (role) => {
   const roleMap = { 'it': 'IT', 'staff': 'Staff', 'super_admin': 'Super Admin', 'finance_admin': 'Finance Admin', 'office_manager': 'Office Manager', 'rev_rangers': 'Rev Rangers' };
@@ -499,8 +526,8 @@ function PasswordField({ label, value, onChange, placeholder = '', disabled }) {
   const [show, setShow] = useState(false);
   return (
     <div className="flex flex-col">
-      <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
-      <div className={`flex items-center border-2 border-gray-200 rounded-xl bg-white transition-all hover:border-gray-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 ${disabled ? 'bg-gray-100' : ''}`}>
+      <label className={INPUT.label}>{label}</label>
+      <div className={`${INPUT.wrapper} ${disabled ? 'bg-gray-100' : ''}`}>
         <input type={show ? 'text' : 'password'} value={value} onChange={onChange} disabled={disabled} className="w-full p-2.5 rounded-xl outline-none bg-transparent disabled:cursor-not-allowed" placeholder={placeholder} />
         <button type="button" onClick={() => setShow(!show)} className="px-3 text-gray-400 hover:text-gray-600">
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -514,8 +541,8 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', p
   if (options) {
     return (
       <div className="flex flex-col">
-        <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
-        <select value={value} onChange={onChange} disabled={disabled} className="w-full p-2.5 border-2 border-gray-200 rounded-xl outline-none transition-all hover:border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed">
+        <label className={INPUT.label}>{label}</label>
+        <select value={value} onChange={onChange} disabled={disabled} className={INPUT.select}>
           <option value="">Select...</option>
           {options.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
@@ -525,8 +552,8 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', p
   if (large) {
     return (
       <div className="flex flex-col">
-        <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
-        <textarea value={value} onChange={onChange} disabled={disabled} rows={4} className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none transition-all hover:border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 resize-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder={placeholder} />
+        <label className={INPUT.label}>{label}</label>
+        <textarea value={value} onChange={onChange} disabled={disabled} rows={4} className={INPUT.textarea} placeholder={placeholder} />
       </div>
     );
   }
@@ -536,8 +563,8 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', p
   };
   return (
     <div className="flex flex-col">
-      <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
-      <div className={`flex items-center border-2 border-gray-200 rounded-xl bg-white transition-all hover:border-gray-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 ${disabled ? 'bg-gray-100' : ''}`}>
+      <label className={INPUT.label}>{label}</label>
+      <div className={`${INPUT.wrapper} ${disabled ? 'bg-gray-100' : ''}`}>
         {prefix && <span className="pl-3 text-gray-400 font-medium">{prefix}</span>}
         <input type={type} value={value} onChange={handleNumberInput} disabled={disabled} className="w-full p-2.5 rounded-xl outline-none bg-transparent disabled:cursor-not-allowed" placeholder={placeholder} inputMode={(isNumber || prefix === '$') ? 'decimal' : undefined} />
       </div>
@@ -552,19 +579,19 @@ function FileUpload({ label, files, onFilesChange, onViewFile, disabled }) {
   };
   return (
     <div className="flex flex-col">
-      <label className="text-xs font-medium text-gray-600 mb-1.5">{label}</label>
-      <div className={`border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-slate-50 hover:border-blue-300 hover:from-blue-50 hover:to-indigo-50 transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+      <label className={INPUT.label}>{label}</label>
+      <div className={`${FILE_UPLOAD.dropzone} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
         <label className={`flex flex-col items-center justify-center gap-2 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} text-gray-500 hover:text-blue-600`}>
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center"><Upload className="w-5 h-5 text-blue-600" /></div>
+          <div className={FILE_UPLOAD.uploadIcon}><Upload className="w-5 h-5 text-blue-600" /></div>
           <span className="text-sm font-medium">Click to upload files</span>
           <input type="file" multiple onChange={handleFileChange} disabled={disabled} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
         </label>
         {files.length > 0 && (
           <div className="mt-3 space-y-2">
             {files.map((file, i) => (
-              <div key={i} className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
+              <div key={i} className={FILE_UPLOAD.fileItem}>
                 <div className="flex items-center gap-2 truncate flex-1">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0"><File className="w-4 h-4 text-blue-600" /></div>
+                  <div className={`${FILE_UPLOAD.fileIcon} flex-shrink-0`}><File className="w-4 h-4 text-blue-600" /></div>
                   <span className="truncate text-sm font-medium text-gray-700">{file.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -584,7 +611,7 @@ function FileViewer({ file, onClose }) {
   if (!file) return null;
   const isImage = file.type?.startsWith('image/') || file.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className={LAYOUT.modalOverlay} onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-4xl max-h-[90vh] w-full overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white/90 backdrop-blur-sm">
           <h3 className="font-semibold truncate text-gray-800">{file.name}</h3>
@@ -595,7 +622,7 @@ function FileViewer({ file, onClose }) {
             <div className="text-center py-12 text-gray-500">
               <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><File className="w-10 h-10 text-gray-400" /></div>
               <p className="mb-4">Preview not available</p>
-              <a href={file.url} download={file.name} className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-shadow">Download File</a>
+              <a href={file.url} download={file.name} className={`inline-block px-6 py-3 ${BTN.primary}`}>Download File</a>
             </div>
           )}
         </div>
@@ -724,8 +751,8 @@ const handleChecklistSave = () => {
     onClose();
   };
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-2xl max-h-[90vh] w-full overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className={LAYOUT.modalOverlay} onClick={onClose}>
+      <div className={LAYOUT.modalCard} onClick={e => e.stopPropagation()}>
         <div className={`flex justify-between items-center p-4 border-b sticky top-0 ${colors?.bg || 'bg-gray-50'}`}>
           <div>
             <h3 className="font-semibold text-gray-800">Entry Details</h3>
@@ -848,8 +875,8 @@ const handleChecklistSave = () => {
                         </div>
                         {config.adminEdit.extraFields?.map(f => (<div key={f.key}><label className="text-xs font-medium text-gray-600 mb-1.5 block">{f.label}</label><textarea value={form[f.key]} onChange={ev => setForm({ ...form, [f.key]: ev.target.value })} placeholder={f.placeholder} rows={3} className={`w-full p-2.5 border-2 border-gray-200 rounded-xl outline-none ${config.adminEdit.focusColor} bg-white resize-none`} /></div>))}
                         <div className="flex gap-2">
-                          <button onClick={saveFn} className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:shadow-lg transition-all">Save Review</button>
-                          <button onClick={() => setIsEditing(false)} className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all">Cancel</button>
+                          <button onClick={saveFn} className={`flex-1 py-2.5 ${BTN.save}`}>Save Review</button>
+                          <button onClick={() => setIsEditing(false)} className={`px-4 py-2.5 ${BTN.cancel}`}>Cancel</button>
                         </div>
                       </div>
                     )}
@@ -920,13 +947,13 @@ const handleChecklistSave = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={handleChecklistSave}
-                          className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                          className={`flex-1 py-2.5 ${BTN.save}`}
                         >
                           Save Review
                         </button>
                         <button
                           onClick={() => setIsEditing(false)}
-                          className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all"
+                          className={`px-4 py-2.5 ${BTN.cancel}`}
                         >
                           Cancel
                         </button>
@@ -1004,13 +1031,13 @@ const handleChecklistSave = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={handleSave}
-                          className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                          className={`flex-1 py-2.5 ${BTN.save}`}
                         >
                           Save Changes
                         </button>
                         <button
                           onClick={() => setIsEditing(false)}
-                          className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all"
+                          className={`px-4 py-2.5 ${BTN.cancel}`}
                         >
                           Cancel
                         </button>
@@ -1030,7 +1057,7 @@ const handleChecklistSave = () => {
 <div className="p-4 border-t bg-gray-50 sticky bottom-0 flex gap-2">
           <button onClick={onClose} className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-medium transition-all">Close</button>
           {onDelete && (
-            <button onClick={() => onDelete(entry.id)} className="px-6 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl font-medium transition-all flex items-center gap-2">
+            <button onClick={() => onDelete(entry.id)} className={`px-6 py-3 ${BTN.danger} flex items-center gap-2`}>
               <Trash2 className="w-4 h-4" /> Delete
             </button>
           )}
@@ -1040,24 +1067,7 @@ const handleChecklistSave = () => {
   );
 }
 function StatusBadge({ status }) {
-  const colors = {
-    'For Review': 'bg-purple-100 text-purple-700 border-purple-200',
-    'Open': 'bg-red-100 text-red-700 border-red-200',
-    'In Progress': 'bg-amber-100 text-amber-700 border-amber-200',
-    'On-hold': 'bg-gray-100 text-gray-600 border-gray-200',
-    'Resolved': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    'Closed': 'bg-gray-100 text-gray-600 border-gray-200',
-    'Pending': 'bg-amber-100 text-amber-700 border-amber-200',
-    'Approved': 'bg-blue-100 text-blue-700 border-blue-200',
-    'Completed': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    'Paid': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    'Denied': 'bg-red-100 text-red-700 border-red-200',
-    'Accounted': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-'Rejected': 'bg-red-100 text-red-700 border-red-200',
-    'Needs Revisions': 'bg-orange-100 text-orange-700 border-orange-200',
-    'Reviewed': 'bg-blue-100 text-blue-700 border-blue-200'
-  };
-  return <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${colors[status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>{status || 'Pending'}</span>;
+  return <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${STATUS_COLORS[status] || STATUS_COLORS._default}`}>{status || 'Pending'}</span>;
 }
 function renderMarkdown(text) {
   if (!text) return null;
@@ -1130,7 +1140,7 @@ function FloatingChat({ messages, input, setInput, onSend, loading, userRole }) 
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 hover:shadow-xl ${isOpen ? 'bg-gray-700' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`}
+        className={`fixed bottom-6 right-6 z-50 ${ICON_BOX.chatBtn} ${isOpen ? 'bg-gray-700' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`}
       >
         {isOpen ? <X className="w-6 h-6 text-white" /> : (
           <div className="relative">
@@ -1144,7 +1154,7 @@ function FloatingChat({ messages, input, setInput, onSend, loading, userRole }) 
           <div className={`p-4 text-white ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <div className={ICON_BOX.chatAvatar}>
                   <Bot className="w-5 h-5" />
                 </div>
                 <div>
@@ -1194,12 +1204,12 @@ function FloatingChat({ messages, input, setInput, onSend, loading, userRole }) 
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && onSend()}
                 placeholder="Ask me anything..."
-                className="flex-1 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                className={`flex-1 ${INPUT.base}`}
               />
               <button
                 onClick={onSend}
                 disabled={loading}
-                className="px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
+                className={`px-4 ${BTN.primary} rounded-xl disabled:opacity-50`}
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -1344,33 +1354,25 @@ const [checklistStatus, setChecklistStatus] = useState({});
     setChecklistStatus(status);
     setChecklistLoading(false);
   };
+  const enrichWithLocationsAndUsers = async (data, includeUpdater = false) => {
+    const locIds = [...new Set(data.map(d => d.location_id).filter(Boolean))];
+    const { data: locsData } = await supabase.from('locations').select('id, name').in('id', locIds).eq('is_active', true);
+    const locMap = {}; locsData?.forEach(l => { locMap[l.id] = l; });
+    const userIds = [...new Set([...data.map(d => d.created_by), ...(includeUpdater ? data.map(d => d.updated_by) : [])].filter(Boolean))];
+    const { data: usersData } = await supabase.from('users').select('id, name').in('id', userIds);
+    const userMap = {}; usersData?.forEach(u => { userMap[u.id] = u; });
+    return data.map(d => ({ ...d, locations: locMap[d.location_id] || null, creator: userMap[d.created_by] || null, ...(includeUpdater ? { updater: userMap[d.updated_by] || null } : {}) }));
+  };
 const loadChecklistAnalyticsData = async () => {
     for (const mod of CHECKLIST_MODULES) {
       if (moduleData[mod.id]?.length > 0 && moduleData[mod.id]?._allLocations) continue;
-      const { data, error } = await supabase
-        .from(mod.table)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1500);
+      const { data } = await supabase.from(mod.table).select('*').order('created_at', { ascending: false }).limit(1500);
       if (data && data.length > 0) {
-        const locIds = [...new Set(data.map(d => d.location_id).filter(Boolean))];
-        const { data: locsData } = await supabase.from('locations').select('id, name').in('id', locIds).eq('is_active', true);
-        const locMap = {};
-        locsData?.forEach(l => { locMap[l.id] = l; });
-        const userIds = [...new Set(data.map(d => d.created_by).filter(Boolean))];
-        const { data: usersData } = await supabase.from('users').select('id, name').in('id', userIds);
-        const userMap = {};
-        usersData?.forEach(u => { userMap[u.id] = u; });
-        const enriched = data.map(d => ({
-          ...d,
-          locations: locMap[d.location_id] || null,
-          creator: userMap[d.created_by] || null
-        }));
+        const enriched = await enrichWithLocationsAndUsers(data);
         enriched._allLocations = true;
         setModuleData(prev => ({ ...prev, [mod.id]: enriched }));
       } else {
-        const empty = [];
-        empty._allLocations = true;
+        const empty = []; empty._allLocations = true;
         setModuleData(prev => ({ ...prev, [mod.id]: empty }));
       }
     }
@@ -1649,32 +1651,14 @@ const toggleSelectAll = () => {
     const { data, error } = await supabase.from('locations').select('*').eq('is_active', true).order('name');
     if (data) setLocations(data);
   };
-const loadItUsers = async () => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, name')
-    .eq('role', 'it')
-    .eq('is_active', true)
-    .order('name');
-  if (error) {
-    console.error('Error loading IT users:', error);
-  }
-  if (data) setItUsers(data);
+const loadUsersByRole = async (role, setter) => {
+  const { data, error } = await supabase.from('users').select('id, name').eq('role', role).eq('is_active', true).order('name');
+  if (error) console.error(`Error loading ${role} users:`, error);
+  if (data) setter(data);
 };
-const loadFinanceAdminUsers = async () => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, name')
-    .eq('role', 'finance_admin')
-    .eq('is_active', true)
-    .order('name');
-  if (error) {
-    console.error('Error loading Finance Admin users:', error);
-  }
-  if (data) setFinanceAdminUsers(data);
-};
+const loadItUsers = () => loadUsersByRole('it', setItUsers);
+const loadFinanceAdminUsers = () => loadUsersByRole('finance_admin', setFinanceAdminUsers);
   const loadUsers = async () => {
-    console.log('Loading users...');
 const { data: usersData, error: usersError } = await supabase
       .from('users')
       .select('*')
@@ -1704,7 +1688,6 @@ const { data: usersData, error: usersError } = await supabase
         ?.map(ul => locationMap[ul.location_id])
         ?.filter(Boolean) || []
     }));
-    console.log('Loaded users:', usersWithLocations.length);
     setUsers(usersWithLocations);
   };
   const loadDocuments = async () => {
@@ -1732,7 +1715,6 @@ const { data: usersData, error: usersError } = await supabase
       ...doc,
       uploader: uploaderMap[doc.uploaded_by] || null
     }));
-    console.log('Loaded documents:', docsWithUploaders.length);
     setDocuments(docsWithUploaders);
   };
   const loadModuleData = async (moduleId) => {
@@ -1752,21 +1734,7 @@ if ((!isAdmin || isOfficeManager) && selectedLocation) {
       console.error('Module data load error:', moduleId, error);
     }
     if (data && data.length > 0) {
-      const locationIds = [...new Set(data.map(d => d.location_id).filter(Boolean))];
-      const { data: locsData } = await supabase.from('locations').select('id, name').in('id', locationIds);
-      const locMap = {};
-      locsData?.forEach(l => { locMap[l.id] = l; });
-      const userIds = [...new Set([...data.map(d => d.created_by), ...data.map(d => d.updated_by)].filter(Boolean))];
-      const { data: usersData } = await supabase.from('users').select('id, name').in('id', userIds);
-      const userMap = {};
-      usersData?.forEach(u => { userMap[u.id] = u; });
-      const enrichedData = data.map(d => ({
-        ...d,
-        locations: locMap[d.location_id] || null,
-        creator: userMap[d.created_by] || null,
-        updater: userMap[d.updated_by] || null
-      }));
-      console.log(`Loaded ${moduleId}:`, enrichedData.length, 'records');
+      const enrichedData = await enrichWithLocationsAndUsers(data, true);
       setModuleData(prev => ({ ...prev, [moduleId]: enrichedData }));
     } else {
       setModuleData(prev => ({ ...prev, [moduleId]: [] }));
@@ -1825,7 +1793,6 @@ const logLoginActivity = async (userId) => {
       const ipData = await ipResponse.json();
       ipAddress = ipData.ip;
     } catch (e) {
-      console.log('Could not fetch IP address');
     }
     await supabase.from('login_activity').insert({
       user_id: userId,
@@ -2145,15 +2112,12 @@ if (!confirmed) return;
   };
   const uploadFiles = async (recordType, recordId, filesByCategory) => {
     const uploadedFiles = [];
-    console.log('Uploading files for', recordType, recordId, filesByCategory);
     for (const [category, fileList] of Object.entries(filesByCategory)) {
       for (const file of fileList) {
         if (!file.isNew || !file.file) {
-          console.log('Skipping file (not new or no file object):', file.name);
           continue;
         }
         const filePath = `${recordType}/${recordId}/${category}/${Date.now()}_${file.name}`;
-        console.log('Uploading to path:', filePath);
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('clinic-documents')
           .upload(filePath, file.file);
@@ -2162,7 +2126,6 @@ if (!confirmed) return;
           showMessage('error', `Failed to upload ${file.name}: ${uploadError.message}`);
           continue;
         }
-        console.log('Upload success, saving to documents table...');
         const { data: docData, error: docError } = await supabase.from('documents').insert({
           record_type: recordType,
           record_id: recordId,
@@ -2176,12 +2139,10 @@ if (!confirmed) return;
         if (docError) {
           console.error('Document record error:', docError);
         } else {
-          console.log('Document saved:', docData);
           uploadedFiles.push({ ...file, storage_path: filePath, id: docData.id });
         }
       }
     }
-    console.log('Total files uploaded:', uploadedFiles.length);
     return uploadedFiles;
   };
 const saveEntry = async (moduleId) => {
@@ -2287,111 +2248,36 @@ const updateReconForm = (entryId, field, value) => {
     }
   }));
 };
-const updateBillingInquiry = async (entryId, formData) => {
-  const confirmed = await showConfirm('Update Billing Inquiry', 'Are you sure you want to update this billing inquiry?', 'Update', 'blue');
-  if (!confirmed) return;
-  const updateData = {
-    status: formData.status,
-    billing_team_reviewed: formData.billing_team_reviewed || null,
-    date_reviewed: formData.date_reviewed || null,
-    result: formData.result || null,
-    updated_by: currentUser.id
-  };
-  const { error } = await supabase
-    .from('billing_inquiries')
-    .update(updateData)
-    .eq('id', entryId);
-  if (error) {
-    showMessage('error', 'Failed to update billing inquiry');
-    return;
-  }
-  showMessage('success', '✓ Billing inquiry updated!');
-  loadModuleData('billing-inquiry');
+// Generic module update: maps moduleId -> { table, title, color, getUpdateData }
+const MODULE_UPDATE_MAP = {
+  'billing-inquiry': { table: 'billing_inquiries', title: 'Billing Inquiry', color: 'blue', getData: (f, uid) => ({ status: f.status, billing_team_reviewed: f.billing_team_reviewed || null, date_reviewed: f.date_reviewed || null, result: f.result || null, updated_by: uid }) },
+  'bills-payment': { table: 'bills_payment', title: 'Bills Payment', color: 'violet', getData: (f, uid) => ({ status: f.status, ap_reviewed: f.billing_team_reviewed || null, date_reviewed: f.date_reviewed || null, paid: f.paid, updated_by: uid }) },
+  'order-requests': { table: 'order_requests', title: 'Order Request', color: 'amber', getData: (f, uid) => ({ status: f.status, reviewed_by: f.reviewed_by || null, reviewed_at: f.status === 'Reviewed' ? new Date().toISOString() : null, updated_by: uid }) },
+  'refund-requests': { table: 'refund_requests', title: 'Refund Request', color: 'rose', getData: (f, uid) => ({ status: f.status, reviewed_by: f.reviewed_by || null, reviewed_at: f.status === 'Reviewed' ? new Date().toISOString() : null, updated_by: uid }) },
 };
-const updateBillsPayment = async (entryId, formData) => {
-  const confirmed = await showConfirm('Update Bills Payment', 'Are you sure you want to update this payment record?', 'Update', 'violet');
+const updateModuleRecord = async (moduleId, entryId, formData) => {
+  const cfg = MODULE_UPDATE_MAP[moduleId];
+  if (!cfg) return;
+  const confirmed = await showConfirm(`Update ${cfg.title}`, `Are you sure you want to update this ${cfg.title.toLowerCase()}?`, 'Update', cfg.color);
   if (!confirmed) return;
-  const updateData = {
-    status: formData.status,
-    ap_reviewed: formData.billing_team_reviewed || null,
-    date_reviewed: formData.date_reviewed || null,
-    paid: formData.paid,
-    updated_by: currentUser.id
-  };
-  const { error } = await supabase
-    .from('bills_payment')
-    .update(updateData)
-    .eq('id', entryId);
-  if (error) {
-    showMessage('error', 'Failed to update bills payment');
-    return;
-  }
-  showMessage('success', '✓ Bills payment updated!');
-  loadModuleData('bills-payment');
+  const { error } = await supabase.from(cfg.table).update(cfg.getData(formData, currentUser.id)).eq('id', entryId);
+  if (error) { showMessage('error', `Failed to update ${cfg.title.toLowerCase()}`); return; }
+  showMessage('success', `✓ ${cfg.title} updated!`);
+  loadModuleData(moduleId);
 };
-const updateOrderRequest = async (entryId, formData) => {
-  const confirmed = await showConfirm('Update Order Request', 'Are you sure you want to update this order request?', 'Update', 'amber');
-  if (!confirmed) return;
-  const updateData = {
-    status: formData.status,
-    reviewed_by: formData.reviewed_by || null,
-    reviewed_at: formData.status === 'Reviewed' ? new Date().toISOString() : null,
-    updated_by: currentUser.id
-  };
-  const { error } = await supabase
-    .from('order_requests')
-    .update(updateData)
-    .eq('id', entryId);
-  if (error) {
-    console.error('Order request update error:', error);
-    showMessage('error', 'Failed to update order request: ' + error.message);
-    return;
-  }
-  showMessage('success', '✓ Order request updated!');
-  loadModuleData('order-requests');
-};
+const updateBillingInquiry = (id, form) => updateModuleRecord('billing-inquiry', id, form);
+const updateBillsPayment = (id, form) => updateModuleRecord('bills-payment', id, form);
+const updateOrderRequest = (id, form) => updateModuleRecord('order-requests', id, form);
+const updateRefundRequest = (id, form) => updateModuleRecord('refund-requests', id, form);
 const updateChecklistEntry = async (entryId, moduleId, formData) => {
   const confirmed = await showConfirm('Update Checklist Entry', `Are you sure you want to update the status to "${formData.status}"?`, 'Update', 'blue');
   if (!confirmed) return;
   const module = ALL_MODULES.find(m => m.id === moduleId);
   if (!module) return;
-  const updateData = {
-    status: formData.status,
-    admin_notes: formData.admin_notes || null,
-    updated_by: currentUser.id
-  };
-  const { error } = await supabase
-    .from(module.table)
-    .update(updateData)
-    .eq('id', entryId);
-  if (error) {
-    console.error('Checklist update error:', error);
-    showMessage('error', 'Failed to update: ' + error.message);
-    return;
-  }
+  const { error } = await supabase.from(module.table).update({ status: formData.status, admin_notes: formData.admin_notes || null, updated_by: currentUser.id }).eq('id', entryId);
+  if (error) { showMessage('error', 'Failed to update: ' + error.message); return; }
   showMessage('success', '✓ Checklist entry updated!');
   loadModuleData(moduleId);
-};
-const updateRefundRequest = async (entryId, formData) => {
-  const confirmed = await showConfirm('Update Refund Request', 'Are you sure you want to update this refund request?', 'Update', 'rose');
-  if (!confirmed) return;
-  const updateData = {
-    status: formData.status,
-    reviewed_by: formData.reviewed_by || null,
-    reviewed_at: formData.status === 'Reviewed' ? new Date().toISOString() : null,
-    updated_by: currentUser.id
-  };
-  const { error } = await supabase
-    .from('refund_requests')
-    .update(updateData)
-    .eq('id', entryId);
-  if (error) {
-    console.error('Refund request update error:', error);
-    showMessage('error', 'Failed to update refund request: ' + error.message);
-    return;
-  }
-  showMessage('success', '✓ Refund request updated!');
-  loadModuleData('refund-requests');
 };
 const updateEntryStatus = async (moduleId, entryId, newStatus, additionalFields = {}) => {
 const confirmed = await showConfirm('Update Status', `Are you sure you want to update the status to "${newStatus}"?`, 'Update', 'blue');
@@ -2774,8 +2660,8 @@ const currentColors = MODULE_COLORS[activeModule];
   };
 if (!currentUser) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-sm border border-white/20">
+    <div className={LAYOUT.loginBg}>
+      <div className={LAYOUT.loginCard}>
         <div className="text-center mb-8">
 <div className="w-64 h-20 mx-auto mb-4">
             <img src="/kidshine.png" alt="KidShine Hawaii" className="w-full h-full object-contain" />
@@ -2840,7 +2726,7 @@ if (!currentUser) {
           <button
             onClick={handleLogin}
             disabled={loginLoading}
-            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-50"
+            className={`w-full py-4 ${BTN.primary} rounded-xl text-lg font-semibold hover:shadow-blue-500/30 disabled:opacity-50`}
           >
             {loginLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Login →'}
           </button>
@@ -2852,8 +2738,8 @@ if (!currentUser) {
 }
 if ((!isAdmin || isOfficeManager) && !selectedLocation && userLocations.length > 1) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-sm border border-white/20">
+      <div className={LAYOUT.loginBg}>
+        <div className={LAYOUT.loginCard}>
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
               <User className="w-8 h-8 text-white" />
@@ -2884,20 +2770,14 @@ if ((!isAdmin || isOfficeManager) && !selectedLocation && userLocations.length >
   }
   const entries = getModuleEntries();
 return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 flex">
+    <div className={LAYOUT.pageBg}>
       {/* Confirmation Dialog */}
       {confirmDialog.open && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={confirmDialog.onCancel}>
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+        <div className={LAYOUT.confirmOverlay} onClick={confirmDialog.onCancel}>
+          <div className={`${LAYOUT.confirmCard} animate-in fade-in zoom-in duration-200`} onClick={e => e.stopPropagation()}>
             <div className="p-6">
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                confirmDialog.confirmColor === 'red' ? 'bg-red-100' : 
-                confirmDialog.confirmColor === 'green' ? 'bg-emerald-100' : 'bg-amber-100'
-              }`}>
-                <AlertCircle className={`w-7 h-7 ${
-                  confirmDialog.confirmColor === 'red' ? 'text-red-600' : 
-                  confirmDialog.confirmColor === 'green' ? 'text-emerald-600' : 'text-amber-600'
-                }`} />
+              <div className={`${ICON_BOX.xlRound} mx-auto mb-4 ${CONFIRM_COLORS[confirmDialog.confirmColor]?.bg || 'bg-amber-100'}`}>
+                <AlertCircle className={`w-7 h-7 ${CONFIRM_COLORS[confirmDialog.confirmColor]?.icon || 'text-amber-600'}`} />
               </div>
               <h3 className="text-xl font-bold text-center text-gray-800 mb-2">{confirmDialog.title}</h3>
               <p className="text-center text-gray-600">{confirmDialog.message}</p>
@@ -2911,11 +2791,7 @@ return (
               </button>
               <button 
                 onClick={confirmDialog.onConfirm} 
-                className={`flex-1 py-4 text-white font-semibold transition-all ${
-                  confirmDialog.confirmColor === 'red' ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700' :
-                  confirmDialog.confirmColor === 'green' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700' :
-                  'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                }`}
+                className={`flex-1 py-4 text-white font-semibold transition-all ${CONFIRM_COLORS[confirmDialog.confirmColor]?.btn || CONFIRM_COLORS.blue.btn}`}
               >
                 {confirmDialog.confirmText}
               </button>
@@ -2924,7 +2800,7 @@ return (
         </div>
       )}
         {passwordDialog.open && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={passwordDialog.onCancel}>
+  <div className={LAYOUT.passwordOverlay} onClick={passwordDialog.onCancel}>
     <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
       <div className="p-6">
         <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-100">
@@ -2951,7 +2827,7 @@ return (
       </div>
       <div className="flex border-t border-gray-200">
         <button onClick={passwordDialog.onCancel} className="flex-1 py-4 text-gray-600 font-semibold hover:bg-gray-50 transition-colors">Cancel</button>
-        <button onClick={() => passwordDialog.onConfirm(passwordDialog.password)} className="flex-1 py-4 text-white font-semibold bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 transition-all">Confirm Delete</button>
+        <button onClick={() => passwordDialog.onConfirm(passwordDialog.password)} className={`flex-1 py-4 font-semibold ${BTN.danger}`}>Confirm Delete</button>
       </div>
     </div>
   </div>
@@ -2997,10 +2873,10 @@ onDelete={isITViewOnly ? null : async (recordId) => {
 />
       <FloatingChat messages={chatMessages} input={chatInput} setInput={setChatInput} onSend={askAI} loading={aiLoading} userRole={currentUser?.role} />
       {/* Sidebar */}
-<div className={`fixed inset-y-0 left-0 z-40 w-72 bg-white shadow-xl flex flex-col transform transition-transform lg:relative lg:translate-x-0 lg:h-screen lg:sticky lg:top-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-<div className={`p-5 flex-shrink-0 ${currentUser?.role === 'it' ? 'bg-gradient-to-r from-cyan-600 to-teal-600' : currentUser?.role === 'rev_rangers' ? 'bg-gradient-to-r from-amber-600 to-orange-600' : currentUser?.role === 'office_manager' ? 'bg-gradient-to-r from-emerald-600 to-green-600' : isSuperAdmin ? 'bg-gradient-to-r from-rose-600 to-pink-600' : isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>     
+<div className={`${LAYOUT.sidebar} ${sidebarOpen ? LAYOUT.sidebarOpen : LAYOUT.sidebarClosed}`}>
+<div className={`p-5 flex-shrink-0 ${ROLE_STYLES[currentUser?.role]?.gradient || ROLE_STYLES.staff.gradient}`}>     
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <div className={ICON_BOX.sidebarAvatar}>
               {currentUser?.role === 'it' ? <Monitor className="w-6 h-6 text-white" /> : currentUser?.role === 'rev_rangers' ? <Shield className="w-6 h-6 text-white" /> : currentUser?.role === 'office_manager' ? <Users className="w-6 h-6 text-white" /> : isSuperAdmin ? <Shield className="w-6 h-6 text-white" /> : isAdmin ? <Shield className="w-6 h-6 text-white" /> : <User className="w-6 h-6 text-white" />}
             </div>
             <div className="text-white">
@@ -3014,7 +2890,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
         {isAdmin && (
             <div className="p-4 border-b bg-purple-50 flex-shrink-0">
             <label className="text-xs font-medium text-purple-700 mb-1.5 block">Filter by Location</label>
-            <select value={adminLocation} onChange={e => setAdminLocation(e.target.value)} className="w-full p-2.5 border-2 border-purple-200 rounded-xl text-sm focus:border-purple-400 outline-none bg-white">
+            <select value={adminLocation} onChange={e => setAdminLocation(e.target.value)} className={`w-full ${INPUT.filterPurple}`}>
               <option value="all">📍 All Locations</option>
               {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
             </select>
@@ -3023,7 +2899,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
         {!isAdmin && userLocations.length > 1 && (
   <div className="p-4 border-b bg-blue-50 flex-shrink-0">
             <label className="text-xs font-medium text-blue-700 mb-1.5 block">Switch Location</label>
-            <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)} className="w-full p-2.5 border-2 border-blue-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white">
+            <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)} className={`w-full ${INPUT.filter}`}>
               {userLocations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
             </select>
           </div>
@@ -3175,7 +3051,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
       </div>
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
-<header className="bg-white shadow-sm border-b sticky top-0 z-30">
+<header className={LAYOUT.header}>
         <div className="flex items-center justify-between px-4 py-2 min-h-[70px]">
             <div className="flex items-center gap-3">
               <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 hover:bg-gray-100 rounded-xl"><Menu className="w-5 h-5" /></button>
@@ -3195,7 +3071,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
           <div className="flex gap-2 px-4 pb-3 overflow-x-auto">
 {isAdmin && currentUser?.role === 'rev_rangers' && activeModule === 'daily-recon' ? (
               [{ id: 'rev-entry', label: '+ New Entry' }, { id: 'records', label: 'Records' }].map(tab => (
-                <button key={tab.id} onClick={() => setAdminView(tab.id)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminView === tab.id ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{tab.label}</button>
+                <button key={tab.id} onClick={() => setAdminView(tab.id)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminView === tab.id ? BTN.amber : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{tab.label}</button>
               ))
             ) : isAdmin && adminView === 'records' ? (
               <button className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${currentColors?.accent} text-white shadow-lg`}>
@@ -3203,7 +3079,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
               </button>
             ) : !isAdmin && view !== 'settings' ? (
               [{ id: 'entry', label: '+ New Entry' }, { id: 'history', label: 'History' }].map(tab => (
-<button key={tab.id} onClick={() => setView(tab.id)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${view === tab.id ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{tab.label}</button>
+<button key={tab.id} onClick={() => setView(tab.id)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${view === tab.id ? BTN.tabActive : BTN.tabInactive}`}>{tab.label}</button>
               ))
             ) : isAdmin && adminView === 'records' && currentUser?.role === 'rev_rangers' ? (
               <button className="px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg">
@@ -3216,9 +3092,9 @@ onDelete={isITViewOnly ? null : async (recordId) => {
       {message.text && (
         <div className={`fixed bottom-24 right-6 z-50 max-w-sm animate-in slide-in-from-right-5 fade-in duration-300`}>
           <div className={`p-4 rounded-xl shadow-lg border-l-4 flex items-center gap-3 ${
-            message.type === 'error' 
-              ? 'bg-white border-l-red-500 text-red-700 shadow-red-100' 
-              : 'bg-white border-l-emerald-500 text-emerald-700 shadow-emerald-100'
+            message.type === 'error'
+              ? LAYOUT.toastError
+              : LAYOUT.toastSuccess
           }`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
               message.type === 'error' ? 'bg-red-100' : 'bg-emerald-100'
@@ -3252,7 +3128,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
                            u.email?.toLowerCase().includes(search) ||
                            u.role?.toLowerCase().includes(search);
                   }).length} Users</h2>
-                  <button onClick={() => setShowAddUser(true)} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all">
+                  <button onClick={() => setShowAddUser(true)} className={`flex items-center gap-2 px-4 py-2.5 ${BTN.admin}`}>
                     <Plus className="w-4 h-4" />Add User
                   </button>
                 </div>
@@ -3263,7 +3139,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
                     value={userSearch}
                     onChange={e => setUserSearch(e.target.value)}
                     placeholder="Search by name, username, email, or role..."
-                    className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none transition-all"
+                    className={INPUT.search}
                   />
                   {userSearch && (
                     <button onClick={() => setUserSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -3273,7 +3149,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
                 </div>
               </div>
               {(showAddUser || editingUser) && (
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                <div className={CARD.base}>
                   <h3 className="font-semibold mb-4 text-gray-800">{editingUser ? 'Edit User' : 'Add New User'}</h3>
 <div className="grid grid-cols-2 gap-4">
                     <InputField label="Name *" value={editingUser ? editingUser.name : newUser.name} onChange={e => editingUser ? setEditingUser({...editingUser, name: e.target.value}) : setNewUser({...newUser, name: e.target.value})} />
@@ -3290,7 +3166,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
                           <button
                             key={loc.id}
                             onClick={() => toggleUserLocation(loc.id, !!editingUser)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(editingUser ? editingUser.locationIds : newUser.locations)?.includes(loc.id) ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(editingUser ? editingUser.locationIds : newUser.locations)?.includes(loc.id) ? BTN.admin : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                           >
                             {loc.name}
                           </button>
@@ -3299,14 +3175,14 @@ onDelete={isITViewOnly ? null : async (recordId) => {
                     </div>
                   )}
                   <div className="flex gap-2 mt-5">
-                    <button onClick={editingUser ? updateUser : addUser} className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all">
+                    <button onClick={editingUser ? updateUser : addUser} className={`flex-1 py-3 ${BTN.admin}`}>
                       {editingUser ? 'Update' : 'Add'} User
                     </button>
-                    <button onClick={() => { setShowAddUser(false); setEditingUser(null); }} className="px-6 py-3 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 transition-all">Cancel</button>
+                    <button onClick={() => { setShowAddUser(false); setEditingUser(null); }} className={`px-6 py-3 ${BTN.cancel}`}>Cancel</button>
                   </div>
                 </div>
               )}
-<div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+<div className={CARD.section}>
   <div className="divide-y">
     {users.filter(u => {
                     if (!userSearch.trim()) return true;
@@ -3319,7 +3195,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
       <div key={u.id}>
         <div className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
           <div className="flex items-center gap-3">
-           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-semibold ${u.role === 'super_admin' ? 'bg-gradient-to-br from-rose-500 to-pink-500' : u.role === 'it' ? 'bg-gradient-to-br from-cyan-500 to-teal-500' : u.role === 'finance_admin' ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : u.role === 'rev_rangers' ? 'bg-gradient-to-br from-amber-500 to-orange-500' : u.role === 'office_manager' ? 'bg-gradient-to-br from-emerald-500 to-green-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
+           <div className={`${ICON_BOX.avatar} ${ROLE_STYLES[u.role]?.avatar || ROLE_STYLES.staff.avatar}`}>
               {u.name.charAt(0)}
             </div>
             <div>
@@ -3333,7 +3209,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
                 </div>
               )}
 {(u.role === 'finance_admin' || u.role === 'super_admin' || u.role === 'it' || u.role === 'rev_rangers') && (
-  <span className={`text-xs font-medium ${u.role === 'it' ? 'text-cyan-600' : u.role === 'rev_rangers' ? 'text-amber-600' : 'text-purple-600'}`}>All locations access</span>
+  <span className={`text-xs font-medium ${ROLE_STYLES[u.role]?.textAccent || 'text-purple-600'}`}>All locations access</span>
 )}
 {u.role === 'office_manager' && u.locations?.length === 0 && (
   <span className="text-xs font-medium text-orange-600">No locations assigned</span>
@@ -3417,11 +3293,11 @@ onDelete={isITViewOnly ? null : async (recordId) => {
 {isAdmin && adminView === 'analytics' && (
   <div className="space-y-6">
     {/* Module Selector */}
-    <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
+    <div className={CARD.analytics}>
 <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <button
           onClick={() => setAnalyticsModule('checklist-overview')}
-          className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${analyticsModule === 'checklist-overview' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${analyticsModule === 'checklist-overview' ? BTN.save : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
         >
           <ClipboardList className="w-4 h-4" />
           Daily Checklist
@@ -3447,7 +3323,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
       </div>
     </div>
     {/* Date Range & Location Filter */}
-    <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
+    <div className={CARD.analytics}>
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${MODULE_COLORS[analyticsModule]?.light}`}>
@@ -3464,7 +3340,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
             <select
               value={adminLocation}
               onChange={e => setAdminLocation(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white"
+              className={`${INPUT.filter}`}
             >
               <option value="all">All Locations</option>
               {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
@@ -3475,7 +3351,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
             <select
               value={analyticsRange}
               onChange={e => setAnalyticsRange(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none bg-white"
+              className={`${INPUT.filter}`}
             >
               <option value="This Week">This Week</option>
               <option value="Last 2 Weeks">Last 2 Weeks</option>
@@ -3520,15 +3396,7 @@ onDelete={isITViewOnly ? null : async (recordId) => {
       };
       const filteredData = filterByRange(data);
 if (filteredData.length === 0 && analyticsModule !== 'checklist-overview') {
-        return (
-          <div className="bg-white rounded-2xl shadow-lg p-12 border border-gray-100 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BarChart3 className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className="text-gray-500 text-lg">No data available for this period</p>
-            <p className="text-gray-400 text-sm mt-1">Try selecting a different date range or location</p>
-          </div>
-        );
+        return <EmptyState icon={BarChart3} message="No data available for this period" />;
       }
       if (analyticsModule === 'checklist-overview') {
         const allLoaded = CHECKLIST_MODULES.every(m => moduleData[m.id] !== undefined);
@@ -3647,7 +3515,7 @@ if (filteredData.length === 0 && analyticsModule !== 'checklist-overview') {
         return (
           <>
             {/* Sub-module Tabs */}
-            <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
+            <div className={CARD.analytics}>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   {[
@@ -3657,7 +3525,7 @@ if (filteredData.length === 0 && analyticsModule !== 'checklist-overview') {
                     <button
                       key={tab.id}
                       onClick={() => setChecklistAnalyticsTab(tab.id)}
-                      className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${checklistAnalyticsTab === tab.id ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${checklistAnalyticsTab === tab.id ? BTN.save : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                     >
                       <tab.icon className="w-4 h-4" />
                       {tab.label}
@@ -3732,30 +3600,14 @@ if (filteredData.length === 0 && analyticsModule !== 'checklist-overview') {
               </div>
             </div>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-emerald-100 text-sm font-medium">Today's Completion</p>
-                <p className="text-3xl font-bold mt-1">{todayTotal > 0 ? Math.round(todaySubmitted / todayTotal * 100) : 0}%</p>
-                <p className="text-emerald-200 text-xs mt-2">{todaySubmitted}/{todayTotal} submitted</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-blue-100 text-sm font-medium">Weekly Average</p>
-                <p className="text-3xl font-bold mt-1">{weekTotal > 0 ? Math.round(weekSubmitted / weekTotal * 100) : 0}%</p>
-                <p className="text-blue-200 text-xs mt-2">Last {weekDates.length} days</p>
-              </div>
-              <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-amber-100 text-sm font-medium">Pending Reviews</p>
-                <p className="text-3xl font-bold mt-1">{pendingReviews}</p>
-                <p className="text-amber-200 text-xs mt-2">Across all modules</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-purple-100 text-sm font-medium">100% Today</p>
-                <p className="text-3xl font-bold mt-1">{perfectToday}/{activeLocs.length}</p>
-                <p className="text-purple-200 text-xs mt-2">Locations complete</p>
-              </div>
-            </div>
+            {renderKPICards([
+              { color: 'emerald', label: "Today's Completion", value: `${todayTotal > 0 ? Math.round(todaySubmitted / todayTotal * 100) : 0}%`, detail: `${todaySubmitted}/${todayTotal} submitted` },
+              { color: 'blue', label: 'Weekly Average', value: `${weekTotal > 0 ? Math.round(weekSubmitted / weekTotal * 100) : 0}%`, detail: `Last ${weekDates.length} days` },
+              { color: 'amber', label: 'Pending Reviews', value: pendingReviews, detail: 'Across all modules' },
+              { color: 'purple', label: '100% Today', value: `${perfectToday}/${activeLocs.length}`, detail: 'Locations complete' },
+            ])}
             {/* Calendar Grid */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-emerald-500" /> {monthName} — Submission Calendar
               </h3>
@@ -3835,7 +3687,7 @@ if (filteredData.length === 0 && analyticsModule !== 'checklist-overview') {
               </div>
             </div>
             {/* Location Compliance Rankings */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-blue-500" /> Location Compliance — {monthName}
               </h3>
@@ -3870,7 +3722,7 @@ if (filteredData.length === 0 && analyticsModule !== 'checklist-overview') {
               </div>
             </div>
             {/* Per-Module Breakdown */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <PieChart className="w-5 h-5 text-teal-500" /> Module Breakdown — {monthName}
               </h3>
@@ -3966,17 +3818,17 @@ const totalDeposited = filteredData.reduce((sum, r) => {
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className={ANALYTICS_CARDS.emerald}>
                 <p className="text-emerald-100 text-sm font-medium">Total Collected</p>
                 <p className="text-2xl font-bold mt-1">${totalCollected.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 <p className="text-emerald-200 text-xs mt-2">{filteredData.length} entries</p>
               </div>
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className={ANALYTICS_CARDS.blue}>
                 <p className="text-blue-100 text-sm font-medium">Total Deposited</p>
                 <p className="text-2xl font-bold mt-1">${totalDeposited.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 <p className="text-blue-200 text-xs mt-2">{accountedCount} accounted</p>
               </div>
-              <div className={`bg-gradient-to-br ${variance > 0 ? 'from-amber-500 to-orange-600' : 'from-gray-500 to-gray-600'} rounded-2xl p-4 text-white shadow-lg`}>
+              <div className={`${variance > 0 ? ANALYTICS_CARDS.amber : ANALYTICS_CARDS.gray}`}>
                 <p className="text-amber-100 text-sm font-medium">Variance</p>
                 <p className="text-2xl font-bold mt-1 flex items-center gap-1">
                   {variance > 0 ? <TrendingUp className="w-5 h-5" /> : variance < 0 ? <TrendingDown className="w-5 h-5" /> : null}
@@ -3984,7 +3836,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
                 </p>
                 <p className="text-amber-200 text-xs mt-2">{variance > 0 ? 'Pending deposit' : variance < 0 ? 'Over deposited' : 'Balanced'}</p>
               </div>
-              <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className={ANALYTICS_CARDS.purple}>
                 <p className="text-purple-100 text-sm font-medium">Review Status</p>
                 <div className="flex items-baseline gap-2 mt-1">
                   <p className="text-2xl font-bold">{pendingCount}</p>
@@ -3994,7 +3846,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
               </div>
             </div>
             {/* Payment Method Breakdown */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <PieChart className="w-5 h-5 text-emerald-500" /> Payment Method Breakdown
               </h3>
@@ -4024,7 +3876,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
             </div>
             {/* Location Performance */}
             {Object.keys(byLocation).length > 1 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className={CARD.base}>
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-blue-500" /> Location Performance
                 </h3>
@@ -4055,7 +3907,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
             )}
 {/* Weekly Trend - Last 4 Weeks */}
             {Object.keys(byWeek).length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className={CARD.base}>
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-emerald-500" /> Weekly Summary
                 </h3>
@@ -4114,7 +3966,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
               </div>
             )}
             {/* Status Breakdown */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4">Status Overview</h3>
               <div className="flex items-center gap-4">
                 <div className="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden flex">
@@ -4146,40 +3998,18 @@ const totalDeposited = filteredData.reduce((sum, r) => {
           byType[type].count += 1;
           byType[type].amount += parseFloat(r.amount_in_question) || 0;
         });
-        const byLocation = {};
-        filteredData.forEach(r => {
-          const loc = r.locations?.name || 'Unknown';
-          if (!byLocation[loc]) byLocation[loc] = { count: 0, amount: 0 };
-          byLocation[loc].count += 1;
-          byLocation[loc].amount += parseFloat(r.amount_in_question) || 0;
-        });
+        const byLocation = groupByLocation(filteredData, 'amount_in_question');
         return (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-blue-100 text-sm font-medium">Total Inquiries</p>
-                <p className="text-2xl font-bold mt-1">{filteredData.length}</p>
-                <p className="text-blue-200 text-xs mt-2">{analyticsRange}</p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-emerald-100 text-sm font-medium">Total Amount</p>
-                <p className="text-2xl font-bold mt-1">${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                <p className="text-emerald-200 text-xs mt-2">In question</p>
-              </div>
-              <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-violet-100 text-sm font-medium">Avg. Amount</p>
-                <p className="text-2xl font-bold mt-1">${avgAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                <p className="text-violet-200 text-xs mt-2">Per inquiry</p>
-              </div>
-              <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-amber-100 text-sm font-medium">Resolution Rate</p>
-                <p className="text-2xl font-bold mt-1">{filteredData.length > 0 ? ((resolvedCount / filteredData.length) * 100).toFixed(0) : 0}%</p>
-                <p className="text-amber-200 text-xs mt-2">{resolvedCount} resolved</p>
-              </div>
-            </div>
+            {renderKPICards([
+              { color: 'blue', label: 'Total Inquiries', value: filteredData.length, detail: analyticsRange },
+              { color: 'emerald', label: 'Total Amount', value: `$${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, detail: 'In question' },
+              { color: 'violet', label: 'Avg. Amount', value: `$${avgAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, detail: 'Per inquiry' },
+              { color: 'amber', label: 'Resolution Rate', value: `${filteredData.length > 0 ? ((resolvedCount / filteredData.length) * 100).toFixed(0) : 0}%`, detail: `${resolvedCount} resolved` },
+            ])}
             {/* Inquiry Type Breakdown */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <PieChart className="w-5 h-5 text-blue-500" /> Inquiry Types
               </h3>
@@ -4194,7 +4024,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
               </div>
             </div>
             {/* Status Overview */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4">Status Distribution</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-center">
@@ -4213,7 +4043,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
             </div>
             {/* Location Breakdown */}
             {Object.keys(byLocation).length > 1 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className={CARD.base}>
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-blue-500" /> By Location
                 </h3>
@@ -4223,7 +4053,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
                       <span className="font-medium text-gray-800">{loc}</span>
                       <div className="text-right">
                         <p className="font-bold text-blue-600">{stats.count} inquiries</p>
-                        <p className="text-sm text-gray-500">${stats.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        <p className="text-sm text-gray-500">${stats.total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                       </div>
                     </div>
                   ))}
@@ -4261,22 +4091,22 @@ const totalDeposited = filteredData.reduce((sum, r) => {
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className={ANALYTICS_CARDS.violet}>
                 <p className="text-violet-100 text-sm font-medium">Total Bills</p>
                 <p className="text-2xl font-bold mt-1">${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 <p className="text-violet-200 text-xs mt-2">{filteredData.length} bills</p>
               </div>
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className={ANALYTICS_CARDS.emerald}>
                 <p className="text-emerald-100 text-sm font-medium">Paid</p>
                 <p className="text-2xl font-bold mt-1">${paidTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 <p className="text-emerald-200 text-xs mt-2">{paidCount} bills paid</p>
               </div>
-              <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className={ANALYTICS_CARDS.amber}>
                 <p className="text-amber-100 text-sm font-medium">Pending</p>
                 <p className="text-2xl font-bold mt-1">${pendingTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 <p className="text-amber-200 text-xs mt-2">{filteredData.length - paidCount} unpaid</p>
               </div>
-              <div className={`bg-gradient-to-br ${overdue.length > 0 ? 'from-red-500 to-rose-600' : 'from-gray-500 to-gray-600'} rounded-2xl p-4 text-white shadow-lg`}>
+              <div className={`${overdue.length > 0 ? ANALYTICS_CARDS.red : ANALYTICS_CARDS.gray}`}>
                 <p className="text-red-100 text-sm font-medium">Overdue</p>
                 <p className="text-2xl font-bold mt-1">{overdue.length}</p>
                 <p className="text-red-200 text-xs mt-2">${overdue.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
@@ -4302,7 +4132,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
               </div>
             )}
             {/* Top Vendors */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-violet-500" /> Top Vendors
               </h3>
@@ -4348,30 +4178,14 @@ const totalDeposited = filteredData.reduce((sum, r) => {
         return (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-amber-100 text-sm font-medium">Total Orders</p>
-                <p className="text-2xl font-bold mt-1">{filteredData.length}</p>
-                <p className="text-amber-200 text-xs mt-2">{analyticsRange}</p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-emerald-100 text-sm font-medium">Total Value</p>
-                <p className="text-2xl font-bold mt-1">${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                <p className="text-emerald-200 text-xs mt-2">All orders</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-blue-100 text-sm font-medium">Avg. Order</p>
-                <p className="text-2xl font-bold mt-1">${avgOrder.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                <p className="text-blue-200 text-xs mt-2">Per order</p>
-              </div>
-              <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-violet-100 text-sm font-medium">Vendors</p>
-                <p className="text-2xl font-bold mt-1">{Object.keys(byVendor).length}</p>
-                <p className="text-violet-200 text-xs mt-2">Unique vendors</p>
-              </div>
-            </div>
+            {renderKPICards([
+              { color: 'amber', label: 'Total Orders', value: filteredData.length, detail: analyticsRange },
+              { color: 'emerald', label: 'Total Value', value: `$${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, detail: 'All orders' },
+              { color: 'blue', label: 'Avg. Order', value: `$${avgOrder.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, detail: 'Per order' },
+              { color: 'violet', label: 'Vendors', value: Object.keys(byVendor).length, detail: 'Unique vendors' },
+            ])}
             {/* Vendor Spending */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-500" /> Vendor Spending
               </h3>
@@ -4395,7 +4209,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
             </div>
             {/* Monthly Trend */}
             {Object.keys(byMonth).length > 1 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className={CARD.base}>
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-amber-500" /> Monthly Trend
                 </h3>
@@ -4436,40 +4250,18 @@ const totalDeposited = filteredData.reduce((sum, r) => {
           byType[type].count += 1;
           byType[type].amount += parseFloat(r.amount_requested) || 0;
         });
-        const byLocation = {};
-        filteredData.forEach(r => {
-          const loc = r.locations?.name || 'Unknown';
-          if (!byLocation[loc]) byLocation[loc] = { count: 0, amount: 0 };
-          byLocation[loc].count += 1;
-          byLocation[loc].amount += parseFloat(r.amount_requested) || 0;
-        });
+        const byLocation = groupByLocation(filteredData, 'amount_requested');
         return (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-rose-100 text-sm font-medium">Total Requests</p>
-                <p className="text-2xl font-bold mt-1">{filteredData.length}</p>
-                <p className="text-rose-200 text-xs mt-2">{analyticsRange}</p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-emerald-100 text-sm font-medium">Total Amount</p>
-                <p className="text-2xl font-bold mt-1">${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                <p className="text-emerald-200 text-xs mt-2">Requested</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-blue-100 text-sm font-medium">Avg. Refund</p>
-                <p className="text-2xl font-bold mt-1">${avgRefund.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                <p className="text-blue-200 text-xs mt-2">Per request</p>
-              </div>
-              <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white shadow-lg">
-                <p className="text-amber-100 text-sm font-medium">Pending</p>
-                <p className="text-2xl font-bold mt-1">{pendingCount}</p>
-                <p className="text-amber-200 text-xs mt-2">Awaiting review</p>
-              </div>
-            </div>
+            {renderKPICards([
+              { color: 'rose', label: 'Total Requests', value: filteredData.length, detail: analyticsRange },
+              { color: 'emerald', label: 'Total Amount', value: `$${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, detail: 'Requested' },
+              { color: 'blue', label: 'Avg. Refund', value: `$${avgRefund.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, detail: 'Per request' },
+              { color: 'amber', label: 'Pending', value: pendingCount, detail: 'Awaiting review' },
+            ])}
             {/* Status Distribution */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <h3 className="font-semibold text-gray-800 mb-4">Status Distribution</h3>
               <div className="grid grid-cols-4 gap-4">
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-center">
@@ -4492,7 +4284,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
             </div>
             {/* By Type */}
             {Object.keys(byType).length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className={CARD.base}>
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <PieChart className="w-5 h-5 text-rose-500" /> By Type
                 </h3>
@@ -4509,17 +4301,17 @@ const totalDeposited = filteredData.reduce((sum, r) => {
             )}
             {/* By Location */}
             {Object.keys(byLocation).length > 1 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className={CARD.base}>
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-rose-500" /> By Location
                 </h3>
                 <div className="space-y-3">
-                  {Object.entries(byLocation).sort((a, b) => b[1].amount - a[1].amount).map(([loc, stats]) => (
+                  {Object.entries(byLocation).sort((a, b) => b[1].total - a[1].total).map(([loc, stats]) => (
                     <div key={loc} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                       <span className="font-medium text-gray-800">{loc}</span>
                       <div className="text-right">
                         <p className="font-bold text-rose-600">{stats.count} requests</p>
-                        <p className="text-sm text-gray-500">${stats.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        <p className="text-sm text-gray-500">${stats.total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                       </div>
                     </div>
                   ))}
@@ -4536,7 +4328,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
 {/* ADMIN: Documents */}
 {isAdmin && adminView === 'documents' && (
   <div className="space-y-4">
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+    <div className={CARD.base}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center">
@@ -4616,7 +4408,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
                   setDocSelectAll(false);
                 }}
                 disabled={downloadingZip}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all disabled:opacity-50"
+                className={`flex items-center gap-2 px-4 py-2 ${BTN.danger} text-sm disabled:opacity-50`}
               >
                 <Trash2 className="w-4 h-4" /> Delete Selected ({selectedDocuments.length})
               </button>
@@ -4707,7 +4499,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
 )}
           {/* ADMIN: Export */}
           {isAdmin && adminView === 'export' && (
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div className={CARD.base}>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center">
                   <Download className="w-6 h-6 text-white" />
@@ -4738,7 +4530,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
                   </select>
                 </div>
               </div>
-              <button onClick={exportToCSV} className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all">
+              <button onClick={exportToCSV} className={`w-full py-4 ${BTN.admin} rounded-xl font-semibold flex items-center justify-center gap-2`}>
                 <Download className="w-5 h-5" />Export to CSV
               </button>
             </div>
@@ -4764,7 +4556,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
       </div>
     )}
     {/* Name Change Section */}
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+    <div className={CARD.base}>
       <div className="flex items-center gap-3 mb-6">
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
           <User className="w-6 h-6 text-white" />
@@ -4776,13 +4568,13 @@ const totalDeposited = filteredData.reduce((sum, r) => {
       </div>
       <div className="space-y-4 max-w-sm">
         <InputField label="Display Name" value={nameForm} onChange={e => setNameForm(e.target.value)} placeholder="Enter your name" />
-        <button onClick={changeName} className={`w-full py-4 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
+        <button onClick={changeName} className={`w-full py-4 rounded-xl font-semibold ${isAdmin ? BTN.admin : BTN.primary}`}>
           Update Name
         </button>
       </div>
     </div>
     {/* Password Change Section */}
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+    <div className={CARD.base}>
       <div className="flex items-center gap-3 mb-6">
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}`}>
           <Lock className="w-6 h-6 text-white" />
@@ -4796,14 +4588,14 @@ const totalDeposited = filteredData.reduce((sum, r) => {
         <PasswordField label="Current Password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} placeholder="Enter current password" />
         <PasswordField label="New Password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} placeholder="Enter new password" />
         <PasswordField label="Confirm New Password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} placeholder="Confirm new password" />
-        <button onClick={changePassword} className={`w-full py-4 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all ${isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
+        <button onClick={changePassword} className={`w-full py-4 rounded-xl font-semibold ${isAdmin ? BTN.admin : BTN.primary}`}>
           Update Password
         </button>
       </div>
     </div>
     {/* Login History (Admin Only) */}
     {isAdmin && loginHistory.length > 0 && (
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+      <div className={CARD.base}>
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center">
             <FileText className="w-6 h-6 text-white" />
@@ -4888,7 +4680,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
         <button
           onClick={() => saveEntry('daily-recon')}
           disabled={saving}
-          className="w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+          className={`w-full py-4 ${BTN.amber} rounded-xl text-lg font-semibold disabled:opacity-50`}
         >
           {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Save Entry'}
         </button>
@@ -4900,7 +4692,7 @@ const totalDeposited = filteredData.reduce((sum, r) => {
 {isAdmin && adminView === 'records' && (
   <div className="space-y-4">
     {/* Filters and Controls */}
-    <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
+    <div className={CARD.analytics}>
       <div className="flex flex-wrap items-center gap-4">
         {/* Search */}
         <div className="flex-1 min-w-[200px]">
@@ -4970,22 +4762,19 @@ const totalDeposited = filteredData.reduce((sum, r) => {
             {selectedRecords.length > 0 && <span className="text-sm text-purple-600 font-medium">{selectedRecords.length} selected</span>}
           </div>
           {selectedRecords.length > 0 && (
-<button onClick={deleteSelectedRecords} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all">
+<button onClick={deleteSelectedRecords} className={`flex items-center gap-2 px-4 py-2 ${BTN.danger} text-sm`}>
 <Trash2 className="w-4 h-4" /> Delete Selected ({selectedRecords.length})
             </button>
           )}
         </div>)}
       </div>
       {/* Records List */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+      <div className={CARD.base}>
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
       ) : getModuleEntries().length === 0 ? (
         <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="text-gray-500">{recordSearch ? 'No records match your search' : 'No entries yet'}</p>
+          <EmptyState icon={FileText} message={recordSearch ? 'No records match your search' : 'No entries yet'} />
           {recordSearch && (
             <button onClick={() => setRecordSearch('')} className="mt-2 text-blue-600 text-sm font-medium hover:underline">Clear search</button>
           )}
@@ -5111,7 +4900,7 @@ return (
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => updateDailyRecon(e.id)} className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-medium hover:shadow-lg transition-all">
+                        <button onClick={() => updateDailyRecon(e.id)} className={`flex-1 py-2.5 ${BTN.save}`}>
                           Submit Review
                         </button>
                         <button onClick={() => { setEditingRecon(null); }} className="px-4 py-2.5 bg-gray-200 rounded-lg font-medium hover:bg-gray-300 transition-all">
@@ -5341,7 +5130,7 @@ return (
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`w-10 h-10 text-sm font-medium rounded-lg transition-all ${currentPage === pageNum ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'}`}
+                    className={`w-10 h-10 text-sm font-medium rounded-lg transition-all ${currentPage === pageNum ? BTN.pageActive : 'text-gray-600 bg-gray-100 hover:bg-gray-200'}`}
                   >
                     {pageNum}
                   </button>
@@ -5405,10 +5194,10 @@ return (
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <button onClick={saveStaffEntryUpdate} disabled={saving} className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50">
+                            <button onClick={saveStaffEntryUpdate} disabled={saving} className={`flex-1 py-2.5 ${BTN.save} disabled:opacity-50`}>
                               {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save Changes'}
                             </button>
-                            <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all">
+                            <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className={`px-4 py-2.5 ${BTN.cancel}`}>
                               Cancel
                             </button>
                           </div>
@@ -5443,7 +5232,7 @@ return (
                           {!isChecklistPastDeadline() && (
                             <button
                               onClick={() => startEditingStaffEntry(checklistStatus['daily-recon']?.entry)}
-                              className="w-full mt-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                              className={`w-full mt-4 py-3 ${BTN.save} flex items-center justify-center gap-2`}
                             >
                               <Edit3 className="w-4 h-4" /> Edit Today's Entry
                             </button>
@@ -5473,7 +5262,7 @@ return (
                     </div>
                   ) : (
                   <>
-                  <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <div className={CARD.colored(currentColors)}>
                     <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2">
                       <DollarSign className="w-5 h-5 text-emerald-500" />Daily Reconciliation
                     </h2>
@@ -5531,10 +5320,10 @@ return (
                           </div>
                           <InputField label="Notes" large value={staffEditForm.notes} onChange={ev => updateStaffEditForm('notes', ev.target.value)} placeholder="Update notes..." />
                           <div className="flex gap-2">
-                            <button onClick={saveStaffEntryUpdate} disabled={saving} className="flex-1 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50">
+                            <button onClick={saveStaffEntryUpdate} disabled={saving} className={`flex-1 py-2.5 ${BTN.save} disabled:opacity-50`}>
                               {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save Changes'}
                             </button>
-                            <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all">
+                            <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className={`px-4 py-2.5 ${BTN.cancel}`}>
                               Cancel
                             </button>
                           </div>
@@ -5600,7 +5389,7 @@ return (
                     </div>
                   ) : (
                     <>
-                      <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                      <div className={CARD.colored(currentColors)}>
                         <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2">
                           <ClipboardList className="w-5 h-5 text-teal-500" /> Completed Procedure
                         </h2>
@@ -5656,10 +5445,10 @@ return (
                           </div>
                           <InputField label="Notes" large value={staffEditForm.notes} onChange={ev => updateStaffEditForm('notes', ev.target.value)} placeholder="Update notes..." />
                           <div className="flex gap-2">
-                            <button onClick={saveStaffEntryUpdate} disabled={saving} className="flex-1 py-2.5 bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50">
+                            <button onClick={saveStaffEntryUpdate} disabled={saving} className={`flex-1 py-2.5 ${BTN.save} disabled:opacity-50`}>
                               {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save Changes'}
                             </button>
-                            <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all">
+                            <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className={`px-4 py-2.5 ${BTN.cancel}`}>
                               Cancel
                             </button>
                           </div>
@@ -5725,7 +5514,7 @@ return (
                     </div>
                   ) : (
                     <>
-                      <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                      <div className={CARD.colored(currentColors)}>
                         <h2 className="font-semibold mb-4 text-gray-800 flex items-center gap-2">
                           <Paperclip className="w-5 h-5 text-sky-500" /> Claims & Documents (X-ray, Documents)
                         </h2>
@@ -5751,7 +5540,7 @@ return (
 
               {STAFF_FORM_CONFIG[activeModule] && (
                 <>
-                  <div className={`bg-white rounded-2xl shadow-lg p-6 border-l-4 ${currentColors?.accent}`}>
+                  <div className={CARD.colored(currentColors)}>
                     <h2 className="font-semibold mb-2 text-gray-800">{STAFF_FORM_CONFIG[activeModule].title}</h2>
                     {STAFF_FORM_CONFIG[activeModule].subtitle && <p className="text-sm text-gray-500 mb-4">{STAFF_FORM_CONFIG[activeModule].subtitle}</p>}
                     {!STAFF_FORM_CONFIG[activeModule].subtitle && <div className="mb-4" />}
@@ -5773,7 +5562,7 @@ return (
                 <button
                   onClick={() => saveEntry(activeModule)}
                   disabled={saving}
-                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                  className={`w-full py-4 ${BTN.primary} rounded-xl text-lg font-semibold disabled:opacity-50`}
                 >
                   {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Save Entry'}
                 </button>
@@ -5784,7 +5573,7 @@ return (
 {!isAdmin && view === 'history' && (
   <div className="space-y-4">
     {/* Sorting Controls */}
-    <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
+    <div className={CARD.analytics}>
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <div className="relative">
@@ -5840,20 +5629,15 @@ return (
       </div>
     </div>
     {/* Records List */}
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+    <div className={CARD.base}>
       <h2 className="font-semibold mb-4 text-gray-800">Your Entries</h2>
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
       ) : getStaffEntries().length === 0 ? (
 <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="text-gray-500">
-            {currentUser?.role === 'staff' && CHECKLIST_MODULES.some(m => m.id === activeModule)
+          <EmptyState icon={FileText} message={currentUser?.role === 'staff' && CHECKLIST_MODULES.some(m => m.id === activeModule)
               ? 'Checklist modules are not available for your role'
-              : staffRecordSearch ? 'No records match your search' : 'No entries yet'}
-          </p>
+              : staffRecordSearch ? 'No records match your search' : 'No entries yet'} />
           {staffRecordSearch && (
             <button onClick={() => setStaffRecordSearch('')} className="mt-2 text-blue-600 text-sm font-medium hover:underline">Clear search</button>
           )}
@@ -5923,10 +5707,10 @@ return (
                       </>
                     )}
                     <div className="flex gap-2 pt-2">
-                      <button onClick={saveStaffEntryUpdate} disabled={saving} className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50">
+                      <button onClick={saveStaffEntryUpdate} disabled={saving} className={`flex-1 py-2.5 ${BTN.primary} disabled:opacity-50`}>
                         {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save Changes'}
                       </button>
-                      <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className="px-4 py-2.5 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition-all">
+                      <button onClick={() => { setEditingStaffEntry(null); setStaffEditForm({}); }} className={`px-4 py-2.5 ${BTN.cancel}`}>
                         Cancel
                       </button>
                     </div>
@@ -6021,7 +5805,7 @@ return (
 )}
 </main>
       </div>
-{sidebarOpen && <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+{sidebarOpen && <div className={LAYOUT.sidebarOverlay} onClick={() => setSidebarOpen(false)} />}
 {/* Version Footer */}
       <div className="fixed bottom-6 left-4 lg:left-[310px] z-[25] pointer-events-none">
         <p className="text-xs text-gray-400 opacity-70">CMS v0.73</p>
